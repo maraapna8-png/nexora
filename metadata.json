@@ -1,0 +1,6 @@
+{
+  "name": "Nexora",
+  "description": "Nexora - Intelligent AI writing and document-analysis workspace.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
