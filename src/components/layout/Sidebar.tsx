@@ -12,7 +12,8 @@ import {
   Search,
   BookOpen,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  Scale
 } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
@@ -25,6 +26,7 @@ interface SidebarProps {
   setActiveView: (view: 'chat' | 'documents' | 'history') => void;
   onOpenSettings: () => void;
   onOpenSearch: () => void;
+  onOpenLegalCitation?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -33,7 +35,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeView,
   setActiveView,
   onOpenSettings,
-  onOpenSearch
+  onOpenSearch,
+  onOpenLegalCitation
 }) => {
   const {
     conversations,
@@ -200,6 +203,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <Search className="w-3.5 h-3.5 text-slate-500" />
           </button>
+
+          {onOpenLegalCitation && (
+            <button
+              onClick={() => {
+                onOpenLegalCitation();
+                if (window.innerWidth < 1024) onClose();
+              }}
+              className="w-full px-3 py-2 rounded-lg flex items-center justify-between text-xs font-medium text-slate-400 hover:bg-slate-850 hover:text-slate-200 transition-colors group"
+            >
+              <div className="flex items-center gap-2.5">
+                <Scale className="w-4 h-4 text-cyan-400" />
+                <span className="group-hover:text-cyan-300">Cite Judgment</span>
+              </div>
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-950/80 border border-cyan-800/60 text-cyan-400 font-mono">
+                Tool
+              </span>
+            </button>
+          )}
         </div>
 
         {/* Divider */}

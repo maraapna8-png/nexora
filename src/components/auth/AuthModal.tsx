@@ -102,6 +102,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       await loginWithGoogle();
       onClose();
     } catch (err: any) {
+      if (err.code === 'auth/popup-closed-by-user') {
+        console.info('Google Sign-in popup closed by user.');
+        // Do not display error banner when user voluntarily closes popup
+        return;
+      }
+      if (err.code === 'auth/operation-not-allowed') {
+        setError('Google Sign-In is not enabled in your Firebase project. You can sign in using Email/Password or Guest Mode below.');
+        return;
+      }
       console.error('Google Sign In Error:', err);
       setError(err.message || 'Google sign in encountered an issue.');
     } finally {

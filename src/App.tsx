@@ -9,17 +9,19 @@ import { SavedDocumentsView } from './components/documents/SavedDocumentsView';
 import { ChatHistoryView } from './components/history/ChatHistoryView';
 import { SettingsModal } from './components/settings/SettingsModal';
 import { SearchModal } from './components/modals/SearchModal';
+import { LegalCitationModal } from './components/modals/LegalCitationModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { LandingPage } from './components/landing/LandingPage';
 import { IntroVideoScreen } from './components/common/IntroVideoScreen';
 
 const MainWorkspace: React.FC = () => {
   const { user, loading } = useAuth();
-  const [showIntroVideo, setShowIntroVideo] = useState(true);
+  const [showIntroVideo, setShowIntroVideo] = useState(false);
   const [activeView, setActiveView] = useState<'chat' | 'documents' | 'history'>('chat');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [legalCitationOpen, setLegalCitationOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
 
@@ -80,6 +82,7 @@ const MainWorkspace: React.FC = () => {
         setActiveView={setActiveView}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenSearch={() => setSearchOpen(true)}
+        onOpenLegalCitation={() => setLegalCitationOpen(true)}
       />
 
       {/* Main Content Workspace */}
@@ -89,13 +92,16 @@ const MainWorkspace: React.FC = () => {
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenSearch={() => setSearchOpen(true)}
+          onOpenLegalCitation={() => setLegalCitationOpen(true)}
           activeView={activeView}
           setActiveView={setActiveView}
         />
 
         {/* View Switcher */}
         <main className="flex-1 overflow-hidden relative">
-          {activeView === 'chat' && <ChatArea />}
+          {activeView === 'chat' && (
+            <ChatArea onOpenLegalCitation={() => setLegalCitationOpen(true)} />
+          )}
           {activeView === 'documents' && (
             <SavedDocumentsView onOpenChat={() => setActiveView('chat')} />
           )}
@@ -115,6 +121,10 @@ const MainWorkspace: React.FC = () => {
         isOpen={searchOpen}
         onClose={() => setSearchOpen(false)}
         onOpenChat={() => setActiveView('chat')}
+      />
+      <LegalCitationModal
+        isOpen={legalCitationOpen}
+        onClose={() => setLegalCitationOpen(false)}
       />
     </div>
   );

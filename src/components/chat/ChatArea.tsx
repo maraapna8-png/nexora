@@ -9,12 +9,17 @@ import {
   HelpCircle,
   Wand2,
   Languages,
-  ChevronDown
+  ChevronDown,
+  Scale
 } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { MessageItem } from './MessageItem';
 import { Composer } from './Composer';
 import { FloatingVoicePlayer } from './FloatingVoicePlayer';
+
+interface ChatAreaProps {
+  onOpenLegalCitation?: () => void;
+}
 
 interface PromptCard {
   title: string;
@@ -22,9 +27,17 @@ interface PromptCard {
   icon: any;
   prompt: string;
   color: string;
+  onClickCustom?: () => void;
 }
 
 const EXAMPLE_PROMPTS: PromptCard[] = [
+  {
+    title: 'Cite Court Judgment',
+    subtitle: 'Format citations for legal reports & briefs',
+    icon: Scale,
+    prompt: 'Create a standardized legal citation for reporting this judgment: [Enter Case Name, Court, Year, Volume, Reporter, Page/Paragraph, or paste raw judgment snippet]. Include Neutral Citation, Bluebook, OSCOLA, and Official Law Reporter formats with a concise Ratio Decidendi parenthetical.',
+    color: 'text-teal-400 bg-teal-500/10 border-teal-500/20'
+  },
   {
     title: 'Analyze this PDF',
     subtitle: 'Extract key insights, chapters & questions',
@@ -73,17 +86,10 @@ const EXAMPLE_PROMPTS: PromptCard[] = [
     icon: Wand2,
     prompt: 'Please rewrite this text into a polished, high-impact professional tone with elevated vocabulary and seamless sentence flow.',
     color: 'text-pink-400 bg-pink-500/10 border-pink-500/20'
-  },
-  {
-    title: 'Translate this text',
-    subtitle: 'Natural Urdu, Hindi, Arabic or Punjabi',
-    icon: Languages,
-    prompt: 'Please translate this content into natural, idiomatic Urdu (یا اردو میں سمجھائیں). Preserve all technical accuracy and nuance.',
-    color: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20'
   }
 ];
 
-export const ChatArea: React.FC = () => {
+export const ChatArea: React.FC<ChatAreaProps> = ({ onOpenLegalCitation }) => {
   const { messages, sendMessage, isGenerating } = useChat();
   const scrollEndRef = useRef<HTMLDivElement>(null);
 
@@ -127,7 +133,13 @@ export const ChatArea: React.FC = () => {
                 return (
                   <button
                     key={idx}
-                    onClick={() => handlePromptClick(item.prompt)}
+                    onClick={() => {
+                      if (item.title === 'Cite Court Judgment' && onOpenLegalCitation) {
+                        onOpenLegalCitation();
+                      } else {
+                        handlePromptClick(item.prompt);
+                      }
+                    }}
                     className="p-3.5 rounded-xl bg-slate-900/80 hover:bg-slate-850 border border-slate-800 hover:border-indigo-500/40 transition-all flex items-start gap-3 group shadow-xs hover:shadow-md"
                   >
                     <div className={`p-2 rounded-lg border ${item.color} shrink-0 mt-0.5 group-hover:scale-105 transition-transform`}>

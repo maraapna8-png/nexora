@@ -61,10 +61,11 @@ function buildSystemInstruction(
   let prompt = `You are Nexora (Nexora AI), an elite, lightning-fast AI writing assistant and document-analysis engine.
 Your primary capabilities include:
 1. Deep document & PDF analysis: reading text, identifying structure, extracting key insights, answering specific questions, summarizing complex texts, and generating structured study notes & MCQs.
-2. Multimodal image understanding: reading diagrams, handwritten notes, printed text, infographics, screenshots, and visual layouts.
-3. Versatile writing: creating essays, articles, professional reports, emails, social content, video scripts, stories, and academic summaries.
-4. Multilingual excellence: fluent in English, Urdu (اردو), Hindi (हिंदी), Arabic (العربية), Punjabi (ਪੰਜਾਬੀ / پنجابی), and other global languages. When the user asks in a language or requests a specific language (e.g. Urdu, Hindi), respond naturally, accurately, and idiomatically in that language—never use clumsy literal translations.
-5. Rich Markdown output: utilize clear headings (##, ###), bullet lists, bold text for key terms, tables where helpful, code blocks with language tags, and blockquotes for highlights.
+2. Legal Citation & Judgment Reporting: when requested to format, extract, or create citations for reporting from court judgments, provide precise, standard legal citations across multiple reporting styles (Bluebook, OSCOLA, Neutral Citation, AIR, SCC, PLD, SCMR, US Supreme Court, etc.) complete with case title in italics, court name, decision year, volume, law reporter, page/paragraph pinpoint references, and a concise parenthetical ratio.
+3. Multimodal image understanding: reading diagrams, handwritten notes, printed text, infographics, screenshots, and visual layouts.
+4. Versatile writing: creating essays, articles, professional reports, emails, social content, video scripts, stories, and academic summaries.
+5. Multilingual excellence: fluent in English, Urdu (اردو), Hindi (हिंदी), Arabic (العربية), Punjabi (ਪੰਜਾਬੀ / پنجابی), and other global languages. When the user asks in a language or requests a specific language (e.g. Urdu, Hindi), respond naturally, accurately, and idiomatically in that language—never use clumsy literal translations.
+6. Rich Markdown output: utilize clear headings (##, ###), bullet lists, bold text for key terms, tables where helpful, code blocks with language tags, and blockquotes for highlights.
 
 CRITICAL INSTRUCTION FOR CONCISENESS & SPEED:
 - Default to SHORT, CRISP, and DIRECT answers.
@@ -178,15 +179,18 @@ app.post('/api/chat/stream', async (req: Request, res: Response) => {
     // Primary model and fallback queue
     const requestedModel = AVAILABLE_MODELS.some(m => m.id === model) ? model : 'gemini-3.1-flash-lite';
     const modelsToTry = [requestedModel];
-    if (requestedModel !== 'gemini-3.1-flash-lite') {
+    if (!modelsToTry.includes('gemini-3.1-flash-lite')) {
       modelsToTry.push('gemini-3.1-flash-lite');
     }
-    if (requestedModel !== 'gemini-3.8-flash' && !modelsToTry.includes('gemini-3.8-flash')) {
+    if (!modelsToTry.includes('gemini-3.1-pro-preview')) {
+      modelsToTry.push('gemini-3.1-pro-preview');
+    }
+    if (!modelsToTry.includes('gemini-3.8-flash')) {
       modelsToTry.push('gemini-3.8-flash');
     }
 
     let streamStarted = false;
-    let lastError: any = null;
+    let lastErrorMsg = 'AI service is temporarily busy. Please retry in a few seconds.';
 
     for (const targetModel of modelsToTry) {
       try {
@@ -213,20 +217,30 @@ app.post('/api/chat/stream', async (req: Request, res: Response) => {
           return;
         }
       } catch (streamErr: any) {
-        lastError = streamErr;
-        console.warn(`Streaming attempt failed on ${targetModel}:`, streamErr?.message || streamErr);
+        const rawErrStr = streamErr?.message || String(streamErr || '');
+        if (rawErrStr.includes('429') || rawErrStr.includes('RESOURCE_EXHAUSTED') || rawErrStr.includes('quota')) {
+          lastErrorMsg = 'Selected model reached temporary quota. Retrying with high-availability model...';
+          console.info(`[Model Fallback] ${targetModel} hit quota limit, trying next available model.`);
+        } else if (rawErrStr.includes('503') || rawErrStr.includes('UNAVAILABLE')) {
+          lastErrorMsg = 'Selected model is temporarily busy. Retrying with high-availability model...';
+          console.info(`[Model Fallback] ${targetModel} is temporarily unavailable, trying next available model.`);
+        } else {
+          lastErrorMsg = streamErr?.message || 'AI generation encountered an issue.';
+          console.info(`[Model Fallback] ${targetModel} failed, trying next available model.`);
+        }
+
         if (streamStarted) {
-          // If we already sent chunks, do not restart stream
-          res.write(`data: ${JSON.stringify({ error: streamErr.message || 'Stream interrupted' })}\n\n`);
+          // If we already sent partial text chunks, end stream gracefully
+          res.write(`data: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`);
           res.end();
           return;
         }
-        // Otherwise continue to next model in fallback list
+        // Otherwise continue loop to next target model
       }
     }
 
     // If all models failed before streaming
-    res.write(`data: ${JSON.stringify({ error: lastError?.message || 'AI service is temporarily busy. Please retry.' })}\n\n`);
+    res.write(`data: ${JSON.stringify({ error: 'The AI model is experiencing high demand. Please retry in a moment.' })}\n\n`);
     res.end();
   } catch (err: any) {
     console.error('Gemini Stream Critical Error:', err);
@@ -244,7 +258,7 @@ app.post('/api/generate', async (req: Request, res: Response) => {
       actionParam, // e.g. target language or style
       contextText,
       imageDataUrl,
-      model = 'gemini-3.8-flash'
+      model = 'gemini-3.1-flash-lite'
     } = req.body;
 
     if (!prompt && !contextText && !imageDataUrl) {
@@ -331,8 +345,9 @@ ${prompt || contextText}
 
     const requestedModel = AVAILABLE_MODELS.some(m => m.id === model) ? model : 'gemini-3.1-flash-lite';
     const modelsToTry = [requestedModel];
-    if (requestedModel !== 'gemini-3.1-flash-lite') modelsToTry.push('gemini-3.1-flash-lite');
-    if (requestedModel !== 'gemini-3.8-flash' && !modelsToTry.includes('gemini-3.8-flash')) modelsToTry.push('gemini-3.8-flash');
+    if (!modelsToTry.includes('gemini-3.1-flash-lite')) modelsToTry.push('gemini-3.1-flash-lite');
+    if (!modelsToTry.includes('gemini-3.1-pro-preview')) modelsToTry.push('gemini-3.1-pro-preview');
+    if (!modelsToTry.includes('gemini-3.8-flash')) modelsToTry.push('gemini-3.8-flash');
 
     let responseText = '';
     let usedModel = requestedModel;
@@ -353,9 +368,9 @@ ${prompt || contextText}
           usedModel = targetModel;
           break;
         }
-      } catch (e) {
+      } catch (e: any) {
         genError = e;
-        console.warn(`Generate attempt failed on ${targetModel}:`, e);
+        console.info(`[Generate Fallback] ${targetModel} call failed, trying next fallback model.`);
       }
     }
 

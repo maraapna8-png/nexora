@@ -15,6 +15,7 @@ import {
   Cpu,
   Play
 } from 'lucide-react';
+import { HeroLogoBadge } from './HeroLogoBadge';
 
 interface LandingPageProps {
   onStartWriting: () => void;
@@ -86,10 +87,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-gradient-to-tr from-indigo-600/20 via-violet-600/15 to-transparent rounded-full blur-3xl pointer-events-none -z-10"></div>
 
         {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/80 text-xs font-semibold text-indigo-300 shadow-sm mb-6">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/80 text-xs font-semibold text-indigo-300 shadow-sm mb-4">
           <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
           <span>Next-Gen Document Intelligence & Multimodal Writing</span>
         </div>
+
+        {/* Hero Logo Card (Exact Size Preserved) */}
+        <HeroLogoBadge />
 
         {/* Big Heading */}
         <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white max-w-4xl leading-[1.1]">

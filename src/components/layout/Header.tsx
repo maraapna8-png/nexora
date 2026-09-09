@@ -8,7 +8,8 @@ import {
   Plus,
   Zap,
   Cpu,
-  Feather
+  Feather,
+  Scale
 } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
@@ -18,6 +19,7 @@ interface HeaderProps {
   onToggleSidebar: () => void;
   onOpenSettings: () => void;
   onOpenSearch: () => void;
+  onOpenLegalCitation?: () => void;
   activeView: 'chat' | 'documents' | 'history';
   setActiveView: (view: 'chat' | 'documents' | 'history') => void;
 }
@@ -32,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleSidebar,
   onOpenSettings,
   onOpenSearch,
+  onOpenLegalCitation,
   activeView,
   setActiveView
 }) => {
@@ -144,6 +147,18 @@ export const Header: React.FC<HeaderProps> = ({
           <Plus className="w-3.5 h-3.5" />
           <span>New Chat</span>
         </button>
+
+        {/* Cite Judgment Quick Button */}
+        {onOpenLegalCitation && (
+          <button
+            onClick={onOpenLegalCitation}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/90 hover:bg-slate-700/90 text-indigo-300 border border-indigo-500/30 text-xs font-medium transition-all shadow-xs"
+            title="Create Citation for Judgment Reporting"
+          >
+            <Scale className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="hidden lg:inline">Cite Judgment</span>
+          </button>
+        )}
 
         {/* Search Chats Trigger */}
         <button

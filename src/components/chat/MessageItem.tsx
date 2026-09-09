@@ -147,11 +147,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isLastAssista
 
   return (
     <div
-      className={`py-5 px-4 sm:px-8 transition-colors ${
+      className={`py-4 px-4 sm:px-8 transition-colors ${
         isUser ? 'bg-transparent' : 'bg-[#0f1422]/60 border-y border-slate-800/40'
       }`}
     >
-      <div className="max-w-4xl mx-auto flex items-start gap-3 sm:gap-4">
+      <div className={`max-w-4xl mx-auto flex items-start gap-3 sm:gap-4 ${isUser ? 'flex-row-reverse' : ''}`}>
         {/* Avatar */}
         <div className="shrink-0 mt-0.5">
           {isUser ? (
@@ -160,15 +160,19 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isLastAssista
             </div>
           ) : (
             <div
-              className={`relative w-8 h-8 rounded-xl flex items-center justify-center text-white transition-all duration-300 ${
+              className={`relative w-8 h-8 rounded-xl overflow-hidden bg-[#080d19] flex items-center justify-center transition-all duration-300 ${
                 message.isStreaming
-                  ? 'bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 ring-2 ring-indigo-400/80 shadow-lg shadow-indigo-500/40 animate-pulse-glow'
-                  : 'bg-gradient-to-br from-indigo-500 to-violet-600 shadow-md shadow-indigo-600/20 ring-1 ring-indigo-400/30'
+                  ? 'ring-2 ring-indigo-400/80 shadow-lg shadow-indigo-500/40 animate-pulse-glow'
+                  : 'shadow-md shadow-indigo-600/20 ring-1 ring-indigo-500/40'
               }`}
             >
-              <Sparkles className={`w-4 h-4 ${message.isStreaming ? 'animate-spin [animation-duration:3s]' : ''}`} />
+              <img
+                src="/logo.png"
+                alt="Nexora Logo"
+                className="w-full h-full object-cover rounded-xl"
+              />
               {message.isStreaming && (
-                <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5 z-10">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span>
                 </span>
@@ -178,30 +182,28 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isLastAssista
         </div>
 
         {/* Content & Actions */}
-        <div className="flex-1 min-w-0">
+        <div className={`min-w-0 ${isUser ? 'flex flex-col items-end max-w-[85%] sm:max-w-[75%]' : 'flex-1'}`}>
           {/* Header Role/Name & Model badge */}
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-200">
-                {isUser ? 'You' : 'Nexora'}
+          <div className={`flex items-center gap-2 mb-1.5 ${isUser ? 'justify-end' : 'justify-between'}`}>
+            <span className="text-xs font-semibold text-slate-200">
+              {isUser ? 'You' : 'Nexora'}
+            </span>
+            {!isUser && message.model && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-950/60 border border-indigo-800/50 text-indigo-300 font-mono">
+                {message.model.replace('gemini-', 'Nexora ')}
               </span>
-              {!isUser && message.model && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-950/60 border border-indigo-800/50 text-indigo-300 font-mono">
-                  {message.model.replace('gemini-', 'Nexora ')}
-                </span>
-              )}
-              {message.isStreaming && (
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-950/80 border border-indigo-500/40 text-[10px] text-indigo-300 font-medium animate-pulse">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping"></span>
-                  <span>Generating short response...</span>
-                </span>
-              )}
-            </div>
+            )}
+            {message.isStreaming && (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-950/80 border border-indigo-500/40 text-[10px] text-indigo-300 font-medium animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping"></span>
+                <span>Generating short response...</span>
+              </span>
+            )}
           </div>
 
           {/* Attachments preview if any */}
           {message.attachments && message.attachments.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3">
+            <div className={`flex flex-wrap gap-2 mb-3 ${isUser ? 'justify-end' : ''}`}>
               {message.attachments.map((att: Attachment) => (
                 <div
                   key={att.id}
@@ -225,13 +227,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isLastAssista
 
           {/* Message Body */}
           {isEditing ? (
-            <div className="mt-2 space-y-2">
+            <div className="mt-2 space-y-2 w-full">
               <textarea
                 value={editText}
                 onChange={(e) => setEditText(e.target.value)}
                 className="w-full p-3 rounded-xl bg-slate-900 border border-indigo-500/50 text-slate-100 text-sm focus:outline-hidden focus:ring-1 focus:ring-indigo-500 resize-y min-h-[100px]"
               />
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 justify-end">
                 <button
                   onClick={() => {
                     editAndResendMessage(message.id, editText);
@@ -249,11 +251,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isLastAssista
                 </button>
               </div>
             </div>
+          ) : isUser ? (
+            <div className="rounded-2xl rounded-tr-xs bg-indigo-600/90 text-white px-4 py-2.5 shadow-md border border-indigo-500/40 text-sm sm:text-[15px] leading-relaxed break-words text-left">
+              <p className="whitespace-pre-wrap">{message.content}</p>
+            </div>
           ) : (
             <div className="markdown-body text-sm sm:text-[15px] leading-relaxed break-words">
-              {isUser ? (
-                <p className="whitespace-pre-wrap text-slate-200">{message.content}</p>
-              ) : message.content ? (
+              {message.content ? (
                 <div>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {message.content}
