@@ -12,6 +12,7 @@ interface AuthContextType {
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   registerWithEmail: (email: string, pass: string, name: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  loginWithGoogleRedirect: () => Promise<void>;
   loginAsGuest: () => void;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -124,14 +125,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       const u = await authService.loginWithGoogle();
-      setIsGuest(false);
-      localStorage.removeItem(GUEST_STORAGE_KEY);
-      setUser({
-        uid: u.uid,
-        email: u.email,
-        displayName: u.displayName,
-        photoURL: u.photoURL
-      });
+      if (u) {
+        setIsGuest(false);
+        localStorage.removeItem(GUEST_STORAGE_KEY);
+        setUser({
+          uid: u.uid,
+          email: u.email,
+          displayName: u.displayName || u.email?.split('@')[0] || 'User',
+          photoURL: u.photoURL
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginWithGoogleRedirect = async () => {
+    setLoading(true);
+    try {
+      await authService.loginWithGoogleRedirect();
     } finally {
       setLoading(false);
     }
@@ -177,6 +189,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginWithEmail,
         registerWithEmail,
         loginWithGoogle,
+        loginWithGoogleRedirect,
         loginAsGuest,
         logout,
         resetPassword

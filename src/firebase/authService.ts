@@ -52,6 +52,11 @@ export const authService = {
     }
   },
 
+  // Direct Google Sign-in with redirect (great for mobile browsers & restricted environments)
+  async loginWithGoogleRedirect(): Promise<void> {
+    await signInWithRedirect(auth, googleProvider);
+  },
+
   // Check for redirect result on app initialization
   async checkRedirectResult(): Promise<User | null> {
     try {
