@@ -12,6 +12,7 @@ import { SearchModal } from './components/modals/SearchModal';
 import { LegalCitationModal } from './components/modals/LegalCitationModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { LandingPage } from './components/landing/LandingPage';
+import { SplashScreen } from './components/common/SplashScreen';
 
 const MainWorkspace: React.FC = () => {
   const { user, loading } = useAuth();
@@ -25,16 +26,7 @@ const MainWorkspace: React.FC = () => {
 
   // If loading user auth, show clean backdrop
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#070a12] flex items-center justify-center text-slate-400">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-xl overflow-hidden ring-1 ring-indigo-500/40 animate-pulse">
-            <img src="/logo.png" alt="Nexora" className="w-full h-full object-cover" />
-          </div>
-          <span className="text-xs font-mono text-slate-500">Loading workspace...</span>
-        </div>
-      </div>
-    );
+    return <SplashScreen message="Initializing Nexora Workspace..." />;
   }
 
   // If no user session (neither logged in nor guest), show the high-impact landing page
