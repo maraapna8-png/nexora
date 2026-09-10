@@ -12,11 +12,9 @@ import { SearchModal } from './components/modals/SearchModal';
 import { LegalCitationModal } from './components/modals/LegalCitationModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { LandingPage } from './components/landing/LandingPage';
-import { IntroVideoScreen } from './components/common/IntroVideoScreen';
 
 const MainWorkspace: React.FC = () => {
   const { user, loading } = useAuth();
-  const [showIntroVideo, setShowIntroVideo] = useState(false);
   const [activeView, setActiveView] = useState<'chat' | 'documents' | 'history'>('chat');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -25,12 +23,7 @@ const MainWorkspace: React.FC = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
 
-  // Show the intro video first when opening/reloading the website
-  if (showIntroVideo) {
-    return <IntroVideoScreen onComplete={() => setShowIntroVideo(false)} />;
-  }
-
-  // If loading user auth after intro, show clean backdrop
+  // If loading user auth, show clean backdrop
   if (loading) {
     return (
       <div className="min-h-screen bg-[#070a12] flex items-center justify-center text-slate-400">
@@ -61,7 +54,6 @@ const MainWorkspace: React.FC = () => {
             setAuthModalMode('signup');
             setAuthModalOpen(true);
           }}
-          onPlayIntro={() => setShowIntroVideo(true)}
         />
         <AuthModal
           isOpen={authModalOpen}
@@ -115,7 +107,6 @@ const MainWorkspace: React.FC = () => {
       <SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        onReplayIntro={() => setShowIntroVideo(true)}
       />
       <SearchModal
         isOpen={searchOpen}

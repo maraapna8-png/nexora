@@ -498,16 +498,97 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isLastAssista
             </div>
           )}
 
-          {/* Edit button for User message */}
+          {/* Action Toolbar for User messages */}
           {isUser && !isEditing && (
-            <div className="mt-1 flex items-center gap-2 opacity-0 hover:opacity-100 transition-opacity">
+            <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1.5 sm:gap-2 text-xs">
+              {/* Copy prompt button */}
+              <button
+                onClick={handleCopy}
+                className="p-1 sm:px-2 sm:py-1 rounded-md bg-slate-900/60 hover:bg-slate-800 border border-slate-700/60 text-slate-400 hover:text-slate-200 transition-all flex items-center gap-1 text-[11px]"
+                title="Copy message"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copied ? 'Copied' : 'Copy'}</span>
+              </button>
+
+              {/* Edit prompt button */}
               <button
                 onClick={() => setIsEditing(true)}
-                className="text-[11px] text-slate-400 hover:text-indigo-300 flex items-center gap-1"
+                className="p-1 sm:px-2 sm:py-1 rounded-md bg-slate-900/60 hover:bg-slate-800 border border-slate-700/60 text-slate-400 hover:text-indigo-300 transition-all flex items-center gap-1 text-[11px]"
+                title="Edit and resend"
               >
-                <Edit2 className="w-3 h-3" />
+                <Edit2 className="w-3.5 h-3.5" />
                 <span>Edit</span>
               </button>
+
+              {/* Read aloud user message */}
+              <button
+                onClick={handleVoiceToggle}
+                className={`p-1 sm:px-2 sm:py-1 rounded-md border text-[11px] flex items-center gap-1 transition-all ${
+                  isSpeaking
+                    ? 'bg-rose-600 text-white border-rose-500 animate-pulse'
+                    : 'bg-slate-900/60 hover:bg-slate-800 border-slate-700/60 text-slate-400 hover:text-indigo-300'
+                }`}
+                title={isSpeaking ? 'Stop voice' : 'Listen to message'}
+              >
+                {isSpeaking ? <Square className="w-3.5 h-3.5 fill-white" /> : <Volume2 className="w-3.5 h-3.5 text-indigo-400" />}
+                <span>{isSpeaking ? 'Stop' : 'Voice'}</span>
+              </button>
+
+              {/* Export user prompt dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    setDownloadMenuOpen(!downloadMenuOpen);
+                    setRewriteMenuOpen(false);
+                    setTranslateMenuOpen(false);
+                  }}
+                  className="p-1 sm:px-2 sm:py-1 rounded-md bg-slate-900/60 hover:bg-slate-800 border border-slate-700/60 text-slate-400 hover:text-slate-200 transition-all flex items-center gap-1 text-[11px]"
+                  title="Export message"
+                >
+                  <FileDown className="w-3.5 h-3.5" />
+                  <span>Export</span>
+                  <ChevronDown className="w-3 h-3 text-slate-500" />
+                </button>
+
+                {downloadMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setDownloadMenuOpen(false)} />
+                    <div className="absolute right-0 bottom-full mb-2 w-40 rounded-xl bg-[#131929] border border-slate-700 shadow-xl p-1 z-40 space-y-0.5">
+                      <button
+                        onClick={() => {
+                          downloadAsPlainText('user-prompt', message.content);
+                          setDownloadMenuOpen(false);
+                        }}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition-colors flex items-center gap-2"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Plain Text (.txt)</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          downloadAsMarkdown('user-prompt', message.content);
+                          setDownloadMenuOpen(false);
+                        }}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition-colors flex items-center gap-2"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>Markdown (.md)</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          downloadAsPDF('user-prompt', message.content);
+                          setDownloadMenuOpen(false);
+                        }}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition-colors flex items-center gap-2"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-rose-400" />
+                        <span>PDF (.pdf)</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>

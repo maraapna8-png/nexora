@@ -2,6 +2,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   sendPasswordResetEmail,
   updateProfile,
@@ -34,10 +36,31 @@ export const authService = {
     return userCredential.user;
   },
 
-  // Sign in with Google popup
-  async loginWithGoogle(): Promise<User> {
-    const userCredential = await signInWithPopup(auth, googleProvider);
-    return userCredential.user;
+  // Sign in with Google (popup with auto-fallback to redirect if popup is blocked)
+  async loginWithGoogle(): Promise<User | null> {
+    try {
+      const userCredential = await signInWithPopup(auth, googleProvider);
+      return userCredential.user;
+    } catch (err: any) {
+      // If popup is blocked by browser or netlify iframe, fall back to redirect
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+        console.warn('Popup blocked, attempting signInWithRedirect fallback...');
+        await signInWithRedirect(auth, googleProvider);
+        return null;
+      }
+      throw err;
+    }
+  },
+
+  // Check for redirect result on app initialization
+  async checkRedirectResult(): Promise<User | null> {
+    try {
+      const result = await getRedirectResult(auth);
+      return result ? result.user : null;
+    } catch (err) {
+      console.warn('Redirect result check non-fatal error:', err);
+      return null;
+    }
   },
 
   // Password reset email
@@ -59,3 +82,4 @@ export const authService = {
     return auth.currentUser;
   }
 };
+

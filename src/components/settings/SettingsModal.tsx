@@ -12,8 +12,7 @@ import {
   LogOut,
   Check,
   Zap,
-  Feather,
-  Play
+  Feather
 } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { useAuth } from '../../context/AuthContext';
@@ -22,10 +21,9 @@ import { ThemeOption, LanguageOption, WritingStyleOption, ResponseLengthOption, 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onReplayIntro?: () => void;
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onReplayIntro }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const { settings, updateSettings } = useSettings();
   const { user, logout, isGuest } = useAuth();
   const [activeTab, setActiveTab] = useState<'preferences' | 'model' | 'account'>('preferences');
@@ -203,22 +201,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                   })}
                 </div>
               </div>
-
-              {/* Replay Intro Video Button */}
-              {onReplayIntro && (
-                <div className="pt-2 border-t border-slate-800/80">
-                  <button
-                    onClick={() => {
-                      onClose();
-                      onReplayIntro();
-                    }}
-                    className="w-full py-2.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-indigo-300 hover:text-indigo-200 border border-indigo-500/20 text-xs font-semibold flex items-center justify-center gap-2 transition-all group"
-                  >
-                    <Play className="w-3.5 h-3.5 fill-indigo-400 text-indigo-400 group-hover:scale-110 transition-transform" />
-                    <span>Watch Nexora Intro Video</span>
-                  </button>
-                </div>
-              )}
             </>
           )}
 

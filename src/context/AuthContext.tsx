@@ -41,6 +41,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
+    // Check if returning from redirect sign-in
+    authService.checkRedirectResult().catch((err) => {
+      console.warn('Redirect result check failed:', err);
+    });
+
     const unsubscribe = authService.subscribeToAuth(async (fUser) => {
       setFirebaseUser(fUser);
       if (fUser) {

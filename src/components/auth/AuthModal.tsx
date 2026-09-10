@@ -23,7 +23,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   initialMode = 'login'
 }) => {
-  const { loginWithEmail, registerWithEmail, loginWithGoogle, loginAsGuest } = useAuth();
+  const { loginWithEmail, registerWithEmail, loginWithGoogle, loginAsGuest, resetPassword } = useAuth();
 
   const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>(initialMode);
   const [name, setName] = useState('');
@@ -34,12 +34,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [unauthorizedDomain, setUnauthorizedDomain] = useState<string | null>(null);
+  const [copiedDomain, setCopiedDomain] = useState(false);
+
   if (!isOpen) return null;
+
+  const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessMsg(null);
+    setUnauthorizedDomain(null);
 
     if (!email.trim() || !email.includes('@')) {
       setError('Please provide a valid email address.');
@@ -75,7 +81,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         await registerWithEmail(email, password, name);
         onClose();
       } else if (mode === 'forgot') {
-        setSuccessMsg(`If an account exists for ${email}, a reset link has been dispatched.`);
+        await resetPassword(email);
+        setSuccessMsg(`If an account exists for ${email}, a password reset link has been dispatched.`);
       }
     } catch (err: any) {
       console.error('Auth error:', err);
@@ -88,6 +95,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         msg = 'No account found with this email.';
       } else if (err.code === 'auth/popup-closed-by-user') {
         msg = 'Google sign-in popup was cancelled.';
+      } else if (err.message) {
+        msg = err.message;
       }
       setError(msg);
     } finally {
@@ -97,24 +106,41 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleGoogleLogin = async () => {
     setError(null);
+    setUnauthorizedDomain(null);
     setIsSubmitting(true);
     try {
       await loginWithGoogle();
       onClose();
     } catch (err: any) {
+      console.error('Google Sign In Error:', err);
       if (err.code === 'auth/popup-closed-by-user') {
         console.info('Google Sign-in popup closed by user.');
-        // Do not display error banner when user voluntarily closes popup
+        return;
+      }
+      if (err.code === 'auth/unauthorized-domain') {
+        setUnauthorizedDomain(currentHost);
+        setError(`Netlify Domain Authorization Required: The domain "${currentHost}" needs to be added to Firebase Console.`);
         return;
       }
       if (err.code === 'auth/operation-not-allowed') {
-        setError('Google Sign-In is not enabled in your Firebase project. You can sign in using Email/Password or Guest Mode below.');
+        setError('Google Sign-In is not enabled in the Firebase Console. Please enable Google provider in Firebase Console > Authentication > Sign-in method.');
         return;
       }
-      console.error('Google Sign In Error:', err);
-      setError(err.message || 'Google sign in encountered an issue.');
+      if (err.code === 'auth/popup-blocked') {
+        setError('Pop-up was blocked by your browser. Please allow popups for this site or continue as Guest.');
+        return;
+      }
+      setError(err.message || 'Google sign in encountered an issue. You can also sign in with Email or Guest mode.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const copyHostDomain = () => {
+    if (currentHost) {
+      navigator.clipboard.writeText(currentHost);
+      setCopiedDomain(true);
+      setTimeout(() => setCopiedDomain(false), 2000);
     }
   };
 
@@ -158,9 +184,39 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Error / Success Notifications */}
         {error && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{error}</span>
+          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs space-y-2">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+              <span>{error}</span>
+            </div>
+
+            {unauthorizedDomain && (
+              <div className="mt-2 p-2.5 rounded-lg bg-slate-900/90 border border-slate-700 text-slate-300 space-y-2">
+                <p className="text-[11px] text-slate-300 font-medium">
+                  <strong>How to enable on Netlify:</strong>
+                </p>
+                <ol className="text-[11px] list-decimal list-inside space-y-1 text-slate-400">
+                  <li>Open your <strong>Firebase Console</strong>.</li>
+                  <li>Go to <strong>Authentication &rarr; Settings &rarr; Authorized domains</strong>.</li>
+                  <li>Click <strong>Add domain</strong> and paste your domain:</li>
+                </ol>
+                <div className="flex items-center gap-2 pt-1">
+                  <code className="px-2 py-1 rounded bg-black/60 border border-slate-700 text-indigo-300 font-mono text-[11px] select-all flex-1 truncate">
+                    {unauthorizedDomain}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={copyHostDomain}
+                    className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold flex items-center gap-1 shrink-0"
+                  >
+                    {copiedDomain ? 'Copied!' : 'Copy Domain'}
+                  </button>
+                </div>
+                <div className="pt-1 text-[11px] text-indigo-300 font-medium">
+                  Tip: In the meantime, you can sign in below using <strong>Email/Password</strong> or <strong>Guest Mode</strong>!
+                </div>
+              </div>
+            )}
           </div>
         )}
 
