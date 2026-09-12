@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<llms xmlns="https://llmstxt.org/schema/v1">
+  <metadata>
+    <name>Nexora AI</name>
+    <url>https://ai-nexoraa.netlify.app/</url>
+    <description>Nexora is an intelligent AI writing assistant, document-analysis engine, and multimodal PDF reasoning workspace.</description>
+    <version>2.0.0</version>
+    <category>AI Productivity &amp; Document Intelligence</category>
+    <lastUpdated>2026-09-12</lastUpdated>
+  </metadata>
+  <capabilities>
+    <capability name="Document &amp; PDF Analysis">Extracts text, outlines complex documents, summarizes lengthy research papers, and answers targeted contextual queries.</capability>
+    <capability name="Legal Citation &amp; Reporting">Formats, extracts, and standardizes citations for reporting from court judgments across Bluebook, OSCOLA, AIR, SCC, PLD, and SCMR formats.</capability>
+    <capability name="Multimodal Vision Reasoning">Parses handwritten notes, flowcharts, infographics, diagrams, and visual receipts.</capability>
+    <capability name="Multilingual Fluency">Native fluency in English, Urdu (اردو), Hindi (हिंदी), Arabic (العربية), Punjabi (ਪੰਜਾਬੀ), and 40+ global languages.</capability>
+    <capability name="Export &amp; Audio Synthesis">Exports documents to PDF, Markdown, and TXT; supports realistic voice read-aloud with customizable speeds.</capability>
+  </capabilities>
+  <resources>
+    <resource type="landing" url="https://ai-nexoraa.netlify.app/">Overview of Nexora AI features, workflows, and instant workspace launch.</resource>
+    <resource type="manifest" url="https://ai-nexoraa.netlify.app/llms.txt">Markdown-formatted LLM index file following llmstxt.org specifications.</resource>
+    <resource type="sitemap" url="https://ai-nexoraa.netlify.app/sitemap.xml">XML sitemap of public paths.</resource>
+  </resources>
+</llms>

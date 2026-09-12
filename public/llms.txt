@@ -1,0 +1,17 @@
+# Nexora AI
+
+> Nexora is an intelligent AI writing assistant, document-analysis engine, and multimodal PDF reasoning workspace.
+
+Website: https://ai-nexoraa.netlify.app/
+
+## Capabilities
+- **Deep Document & PDF Analysis**: Extract semantic structure, search full PDF contents, synthesize lengthy research papers, and generate MCQs.
+- **Legal Citation & Judgment Reporting**: Standardized legal citation generation supporting Bluebook, OSCOLA, Neutral Citation, AIR, SCC, PLD, and SCMR formats.
+- **Multimodal Visual Intelligence**: Parse handwritten notes, diagrams, charts, infographics, and scanned pages.
+- **Multilingual Fluency**: Native language generation in English, Urdu (اردو), Hindi (हिंदी), Arabic (العربية), Punjabi (ਪੰਜਾਬੀ), and 40+ global languages.
+- **Export & Voice**: Export to PDF, Markdown, and Plain Text, with realistic text-to-speech audio playback.
+
+## Links
+- [Nexora Web Application](https://ai-nexoraa.netlify.app/)
+- [XML Sitemap](https://ai-nexoraa.netlify.app/sitemap.xml)
+- [LLM XML Specification](https://ai-nexoraa.netlify.app/llms.xml)

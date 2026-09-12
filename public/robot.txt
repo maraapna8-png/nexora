@@ -1,0 +1,9 @@
+# User-Agent Rules for Nexora AI Workspace
+# Website: https://ai-nexoraa.netlify.app/
+
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://ai-nexoraa.netlify.app/sitemap.xml
+Sitemap: https://ai-nexoraa.netlify.app/llms.xml
