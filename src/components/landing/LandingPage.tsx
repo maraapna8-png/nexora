@@ -20,12 +20,14 @@ interface LandingPageProps {
   onStartWriting: () => void;
   onOpenLogin: () => void;
   onOpenSignUp: () => void;
+  onGuestLogin?: () => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   onStartWriting,
   onOpenLogin,
-  onOpenSignUp
+  onOpenSignUp,
+  onGuestLogin
 }) => {
   const scrollToFeatures = () => {
     document.getElementById('features-section')?.scrollIntoView({ behavior: 'smooth' });
@@ -53,7 +55,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {onGuestLogin && (
+            <button
+              onClick={onGuestLogin}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-300 hover:text-white bg-indigo-950/60 hover:bg-indigo-900/60 border border-indigo-700/40 transition-colors"
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+              <span>Instant Access</span>
+            </button>
+          )}
           <button
             onClick={onOpenLogin}
             className="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition-colors"

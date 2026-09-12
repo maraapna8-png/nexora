@@ -24,10 +24,14 @@ interface HeaderProps {
   setActiveView: (view: 'chat' | 'documents' | 'history') => void;
 }
 
-const MODEL_LABELS: Record<AIModelType, { name: string; icon: any; badge: string; color: string }> = {
+const MODEL_LABELS: Record<string, { name: string; icon: any; badge: string; color: string }> = {
   'gemini-3.1-flash-lite': { name: 'Nexora 3.1 Flash Lite', icon: Zap, badge: 'Ultra Fast', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
   'gemini-3.8-flash': { name: 'Nexora 3.8 Flash', icon: Cpu, badge: 'Smart & Fast', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
-  'gemini-3.1-pro-preview': { name: 'Nexora 3.1 Pro', icon: Feather, badge: 'Deep Reasoning', color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' }
+  'gemini-3.1-pro-preview': { name: 'Nexora 3.1 Pro', icon: Feather, badge: 'Deep Reasoning', color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
+  'gemini-2.5-flash': { name: 'Nexora 2.5 Flash', icon: Cpu, badge: 'Fast & Smart', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+  'gemini-2.5-pro': { name: 'Nexora 2.5 Pro', icon: Feather, badge: 'Deep Reasoning', color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
+  'gemini-2.0-flash': { name: 'Nexora 2.0 Flash', icon: Zap, badge: 'Ultra Fast', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+  'gemini-2.0-flash-lite': { name: 'Nexora 2.0 Flash Lite', icon: Zap, badge: 'Ultra Fast', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }
 };
 
 export const Header: React.FC<HeaderProps> = ({

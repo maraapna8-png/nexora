@@ -15,7 +15,7 @@ import { LandingPage } from './components/landing/LandingPage';
 import { SplashScreen } from './components/common/SplashScreen';
 
 const MainWorkspace: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, loginAsGuest } = useAuth();
   const [activeView, setActiveView] = useState<'chat' | 'documents' | 'history'>('chat');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -46,6 +46,7 @@ const MainWorkspace: React.FC = () => {
             setAuthModalMode('signup');
             setAuthModalOpen(true);
           }}
+          onGuestLogin={loginAsGuest}
         />
         <AuthModal
           isOpen={authModalOpen}
