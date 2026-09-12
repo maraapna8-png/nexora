@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import appletConfig from '../../firebase-applet-config.json';
 
 // Configuration loaded from firebase-applet-config.json with environment variable fallback support
@@ -18,8 +18,23 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)');
+export const db = firebaseConfig.firestoreDatabaseId
+  ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
+  : getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+// Non-blocking connection verification as per Firestore guidelines
+if (typeof window !== 'undefined') {
+  setTimeout(async () => {
+    try {
+      await getDocFromServer(doc(db, 'system_health', 'ping'));
+    } catch (error) {
+      if (error instanceof Error && (error.message.includes('the client is offline') || error.message.includes('unavailable'))) {
+        console.info('Nexora: Operating in offline-resilient local cache mode.');
+      }
+    }
+  }, 1000);
+}
 
 export default app;
