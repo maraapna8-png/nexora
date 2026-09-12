@@ -173,7 +173,7 @@ export const Composer: React.FC<ComposerProps> = () => {
         ref={fileInputRef}
         onChange={handleFileChange}
         multiple
-        accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.md"
+        accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.webp,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain"
         className="hidden"
       />
 
@@ -257,6 +257,8 @@ export const Composer: React.FC<ComposerProps> = () => {
                   <Loader2 className="w-3.5 h-3.5 text-indigo-400 animate-spin shrink-0" />
                 ) : att.type === 'pdf' ? (
                   <FileText className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                ) : att.type === 'word' ? (
+                  <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                 ) : att.type === 'image' ? (
                   <ImageIcon className="w-3.5 h-3.5 text-sky-400 shrink-0" />
                 ) : (
@@ -269,7 +271,7 @@ export const Composer: React.FC<ComposerProps> = () => {
 
                 {att.status === 'ready' && (
                   <span className="text-[10px] text-emerald-400 shrink-0 font-semibold">
-                    Ready
+                    {att.type === 'word' ? 'Word Ready' : 'Ready'}
                   </span>
                 )}
 
@@ -298,7 +300,7 @@ export const Composer: React.FC<ComposerProps> = () => {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="p-2.5 rounded-xl text-slate-400 hover:text-indigo-300 hover:bg-slate-800/80 transition-colors shrink-0"
-            title="Attach PDF, Image, or Notes"
+            title="Attach MS Word (.docx), PDF, Image, or Notes"
             disabled={isGenerating}
           >
             <Paperclip className="w-5 h-5" />

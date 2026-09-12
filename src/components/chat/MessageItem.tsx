@@ -211,6 +211,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isLastAssista
                 >
                   {att.type === 'pdf' ? (
                     <FileText className="w-4 h-4 text-rose-400 shrink-0" />
+                  ) : att.type === 'word' ? (
+                    <FileText className="w-4 h-4 text-blue-400 shrink-0" />
                   ) : att.type === 'image' ? (
                     <ImageIcon className="w-4 h-4 text-sky-400 shrink-0" />
                   ) : (

@@ -35,7 +35,7 @@ export interface UserSettings {
 export interface Attachment {
   id: string;
   name: string;
-  type: 'pdf' | 'image' | 'text' | 'document';
+  type: 'pdf' | 'word' | 'image' | 'text' | 'document';
   mimeType: string;
   size: number;
   dataUrl?: string; // For images/small previews (base64)

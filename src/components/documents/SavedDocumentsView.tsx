@@ -58,7 +58,7 @@ export const SavedDocumentsView: React.FC<SavedDocumentsViewProps> = ({ onOpenCh
         ref={fileInputRef}
         onChange={handleFileUpload}
         multiple
-        accept=".pdf,.png,.jpg,.jpeg,.txt,.md"
+        accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.webp,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain"
         className="hidden"
       />
 
@@ -70,7 +70,7 @@ export const SavedDocumentsView: React.FC<SavedDocumentsViewProps> = ({ onOpenCh
             <span>Saved Documents & Files</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Manage your uploaded PDFs, research materials, and saved AI reports for instant analysis.
+            Manage your uploaded MS Word (.docx, .doc), PDFs, research materials, and saved AI reports for instant analysis.
           </p>
         </div>
 
@@ -82,12 +82,12 @@ export const SavedDocumentsView: React.FC<SavedDocumentsViewProps> = ({ onOpenCh
           {isProcessing ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Processing PDF...</span>
+              <span>Processing Document...</span>
             </>
           ) : (
             <>
               <UploadCloud className="w-4 h-4" />
-              <span>Upload New PDF</span>
+              <span>Upload Word / PDF</span>
             </>
           )}
         </button>
@@ -140,16 +140,34 @@ export const SavedDocumentsView: React.FC<SavedDocumentsViewProps> = ({ onOpenCh
                   {/* Top info */}
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="p-2 rounded-lg bg-slate-800 text-amber-400 shrink-0">
+                      <div className={`p-2 rounded-lg shrink-0 ${
+                        doc.fileType === 'docx' || doc.fileType === 'doc' || doc.name.toLowerCase().endsWith('.docx') || doc.name.toLowerCase().endsWith('.doc')
+                          ? 'bg-blue-950/60 text-blue-400 border border-blue-500/30'
+                          : doc.fileType === 'pdf' || doc.name.toLowerCase().endsWith('.pdf')
+                          ? 'bg-rose-950/60 text-rose-400 border border-rose-500/30'
+                          : 'bg-slate-800 text-amber-400'
+                      }`}>
                         <FileText className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
                         <h4 className="text-xs sm:text-sm font-semibold text-slate-100 truncate" title={doc.name}>
                           {doc.name}
                         </h4>
-                        <span className="text-[10px] text-emerald-400 font-medium">
-                          Document ready for analysis
-                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {(doc.fileType === 'docx' || doc.fileType === 'doc' || doc.name.toLowerCase().endsWith('.docx') || doc.name.toLowerCase().endsWith('.doc')) && (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-900/60 text-blue-300 font-mono font-semibold">
+                              WORD
+                            </span>
+                          )}
+                          {(doc.fileType === 'pdf' || doc.name.toLowerCase().endsWith('.pdf')) && (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-900/60 text-rose-300 font-mono font-semibold">
+                              PDF
+                            </span>
+                          )}
+                          <span className="text-[10px] text-emerald-400 font-medium">
+                            Ready for analysis
+                          </span>
+                        </div>
                       </div>
                     </div>
 

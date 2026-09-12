@@ -5,6 +5,7 @@ import { useSettings } from './SettingsContext';
 import { firestoreService } from '../firebase/firestoreService';
 import { geminiClient } from '../services/geminiClient';
 import { extractTextFromPDF } from '../utils/pdfParser';
+import { extractTextFromWord } from '../utils/docxParser';
 
 interface ChatContextType {
   conversations: Conversation[];
@@ -246,13 +247,24 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     for (const file of fileArray) {
       const tempId = 'att_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
       const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      const isWord =
+        file.name.toLowerCase().endsWith('.docx') ||
+        file.name.toLowerCase().endsWith('.doc') ||
+        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        file.type === 'application/msword';
       const isImage = file.type.startsWith('image/');
 
       const initialAttachment: Attachment = {
         id: tempId,
         name: file.name,
-        type: isPdf ? 'pdf' : isImage ? 'image' : 'document',
-        mimeType: file.type || (isPdf ? 'application/pdf' : 'application/octet-stream'),
+        type: isPdf ? 'pdf' : isWord ? 'word' : isImage ? 'image' : 'document',
+        mimeType:
+          file.type ||
+          (isPdf
+            ? 'application/pdf'
+            : isWord
+            ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            : 'application/octet-stream'),
         size: file.size,
         status: 'processing'
       };
@@ -285,6 +297,32 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
               extractedTextPreview: parseResult.preview,
               fullTextLength: parseResult.text.length,
               chunkCount: parseResult.chunks.length
+            });
+          }
+        } else if (isWord) {
+          const docxResult = await extractTextFromWord(file);
+          setActiveAttachments(prev =>
+            prev.map(a =>
+              a.id === tempId
+                ? {
+                    ...a,
+                    status: 'ready',
+                    extractedText: docxResult.text,
+                    chunkCount: docxResult.chunks.length
+                  }
+                : a
+            )
+          );
+
+          if (user) {
+            saveDocumentToLibrary({
+              name: file.name,
+              fileType: 'docx',
+              fileSize: file.size,
+              status: 'ready',
+              extractedTextPreview: docxResult.preview,
+              fullTextLength: docxResult.text.length,
+              chunkCount: docxResult.chunks.length
             });
           }
         } else if (isImage) {

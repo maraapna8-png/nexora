@@ -156,11 +156,11 @@ export const Header: React.FC<HeaderProps> = ({
         {onOpenLegalCitation && (
           <button
             onClick={onOpenLegalCitation}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/90 hover:bg-slate-700/90 text-indigo-300 border border-indigo-500/30 text-xs font-medium transition-all shadow-xs"
-            title="Create Citation for Judgment Reporting"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/90 hover:bg-slate-700/90 text-emerald-300 border border-emerald-500/30 text-xs font-medium transition-all shadow-xs"
+            title="Pakistani Judgment Citation Generator (PLD, SCMR, CLC)"
           >
-            <Scale className="w-3.5 h-3.5 text-indigo-400" />
-            <span className="hidden lg:inline">Cite Judgment</span>
+            <Scale className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden lg:inline">Pakistani Citation</span>
           </button>
         )}
 

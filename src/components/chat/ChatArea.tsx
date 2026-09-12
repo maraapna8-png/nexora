@@ -32,18 +32,18 @@ interface PromptCard {
 
 const EXAMPLE_PROMPTS: PromptCard[] = [
   {
-    title: 'Cite Court Judgment',
-    subtitle: 'Format citations for legal reports & briefs',
+    title: 'Pakistani Judgment Citation',
+    subtitle: 'PLD, SCMR, CLC, PCrLJ citations & briefs',
     icon: Scale,
-    prompt: 'Create a standardized legal citation for reporting this judgment: [Enter Case Name, Court, Year, Volume, Reporter, Page/Paragraph, or paste raw judgment snippet]. Include Neutral Citation, Bluebook, OSCOLA, and Official Law Reporter formats with a concise Ratio Decidendi parenthetical.',
-    color: 'text-teal-400 bg-teal-500/10 border-teal-500/20'
+    prompt: 'Create a standardized Pakistani legal citation for reporting this judgment: [Enter Case Name, Court (Supreme Court/High Court), Year, Volume, Reporter (PLD/SCMR/CLC), Page/Paragraph, or paste raw judgment snippet]. Include PLD/SCMR Law Reporter, Court Appeal Number, Bench reference, and Urdu citation with Ratio Decidendi.',
+    color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
   },
   {
-    title: 'Analyze this PDF',
-    subtitle: 'Extract key insights, chapters & questions',
+    title: 'Analyze PDF or Word File',
+    subtitle: 'Extract insights from .docx & .pdf documents',
     icon: FileSearch,
-    prompt: 'Please analyze the attached PDF, summarize its main thesis, and highlight the most critical takeaways.',
-    color: 'text-rose-400 bg-rose-500/10 border-rose-500/20'
+    prompt: 'Please analyze the attached document (Word/PDF), summarize its main thesis, extract key concepts, and highlight the most critical takeaways.',
+    color: 'text-blue-400 bg-blue-500/10 border-blue-500/20'
   },
   {
     title: 'Write an article',
@@ -134,7 +134,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ onOpenLegalCitation }) => {
                   <button
                     key={idx}
                     onClick={() => {
-                      if (item.title === 'Cite Court Judgment' && onOpenLegalCitation) {
+                      if ((item.title === 'Pakistani Judgment Citation' || item.title === 'Cite Court Judgment') && onOpenLegalCitation) {
                         onOpenLegalCitation();
                       } else {
                         handlePromptClick(item.prompt);
