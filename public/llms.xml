@@ -6,7 +6,7 @@
     <description>Nexora is an intelligent AI writing assistant, document-analysis engine, and multimodal PDF reasoning workspace.</description>
     <version>2.0.0</version>
     <category>AI Productivity &amp; Document Intelligence</category>
-    <lastUpdated>2026-09-12</lastUpdated>
+    <lastUpdated>2026-09-28</lastUpdated>
   </metadata>
   <capabilities>
     <capability name="Document &amp; PDF Analysis">Extracts text, outlines complex documents, summarizes lengthy research papers, and answers targeted contextual queries.</capability>

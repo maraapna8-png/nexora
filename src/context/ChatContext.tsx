@@ -46,6 +46,7 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 const LOCAL_STORAGE_CONVS_PREFIX = 'writemind_convs_';
 const LOCAL_STORAGE_MSGS_PREFIX = 'writemind_msgs_';
 const LOCAL_STORAGE_DOCS_PREFIX = 'writemind_docs_';
+const LOCAL_STORAGE_ACTIVE_CONV_PREFIX = 'writemind_active_conv_';
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isGuest } = useAuth();
@@ -72,7 +73,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [settings.preferredModel]);
 
-  // Load conversations and documents on user login
+  // Load conversations and documents on user login / page reload
   useEffect(() => {
     if (!user) {
       setConversations([]);
@@ -84,8 +85,44 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const loadUserData = async () => {
       setLoadingHistory(true);
+
+      // 1. Instant synchronous recovery from LocalStorage so messages appear with ZERO flash
+      try {
+        const cachedConvsRaw = localStorage.getItem(LOCAL_STORAGE_CONVS_PREFIX + user.uid);
+        const cachedConvs: Conversation[] = cachedConvsRaw ? JSON.parse(cachedConvsRaw) : [];
+        const lastActiveId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_CONV_PREFIX + user.uid);
+
+        if (cachedConvs.length > 0) {
+          setConversations(cachedConvs);
+          const targetConv = (lastActiveId && cachedConvs.find(c => c.id === lastActiveId)) || cachedConvs[0];
+          setActiveConversation(targetConv);
+          setActiveModel(targetConv.model || activeModel);
+
+          const cachedMsgsRaw = localStorage.getItem(LOCAL_STORAGE_MSGS_PREFIX + targetConv.id);
+          if (cachedMsgsRaw) {
+            try {
+              const msgs: Message[] = JSON.parse(cachedMsgsRaw);
+              setMessages(msgs);
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+
+        const cachedDocsRaw = localStorage.getItem(LOCAL_STORAGE_DOCS_PREFIX + user.uid);
+        if (cachedDocsRaw) {
+          try {
+            setSavedDocuments(JSON.parse(cachedDocsRaw));
+          } catch (e) {
+            // ignore
+          }
+        }
+      } catch (e) {
+        console.warn('Initial local cache reading note:', e);
+      }
+
+      // 2. Background synchronization
       if (isGuest) {
-        // Load from LocalStorage for guest
         try {
           const storedConvs = localStorage.getItem(LOCAL_STORAGE_CONVS_PREFIX + user.uid);
           const parsedConvs: Conversation[] = storedConvs ? JSON.parse(storedConvs) : [];
@@ -95,8 +132,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const parsedDocs: SavedDocument[] = storedDocs ? JSON.parse(storedDocs) : [];
           setSavedDocuments(parsedDocs);
 
+          const lastActiveId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_CONV_PREFIX + user.uid);
           if (parsedConvs.length > 0) {
-            await selectConversation(parsedConvs[0].id, parsedConvs);
+            const activeIdToUse = lastActiveId && parsedConvs.some(c => c.id === lastActiveId) ? lastActiveId : parsedConvs[0].id;
+            await selectConversation(activeIdToUse, parsedConvs);
           } else {
             await createNewConversation();
           }
@@ -104,7 +143,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error('Error loading guest data:', e);
         }
       } else {
-        // Load from Firestore
+        // Load & synchronize from Firestore
         try {
           const [remoteConvs, remoteDocs] = await Promise.all([
             firestoreService.getUserConversations(user.uid),
@@ -113,11 +152,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           setConversations(remoteConvs);
           setSavedDocuments(remoteDocs);
+          localStorage.setItem(LOCAL_STORAGE_CONVS_PREFIX + user.uid, JSON.stringify(remoteConvs));
+          localStorage.setItem(LOCAL_STORAGE_DOCS_PREFIX + user.uid, JSON.stringify(remoteDocs));
 
+          const lastActiveId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_CONV_PREFIX + user.uid);
           if (remoteConvs.length > 0) {
-            await selectConversation(remoteConvs[0].id, remoteConvs);
+            const activeIdToUse = lastActiveId && remoteConvs.some(c => c.id === lastActiveId) ? lastActiveId : remoteConvs[0].id;
+            await selectConversation(activeIdToUse, remoteConvs);
           } else {
-            await createNewConversation();
+            // Only create new conversation if none exist at all
+            const cachedConvsRaw = localStorage.getItem(LOCAL_STORAGE_CONVS_PREFIX + user.uid);
+            const cachedConvs: Conversation[] = cachedConvsRaw ? JSON.parse(cachedConvsRaw) : [];
+            if (cachedConvs.length === 0) {
+              await createNewConversation();
+            }
           }
         } catch (err) {
           console.error('Error fetching Firestore history:', err);
@@ -160,12 +208,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setMessages([]);
     setActiveAttachments([]);
 
-    setConversations(prev => [newConv, ...prev]);
+    localStorage.setItem(LOCAL_STORAGE_ACTIVE_CONV_PREFIX + user.uid, newConv.id);
+    localStorage.setItem(LOCAL_STORAGE_MSGS_PREFIX + newConv.id, JSON.stringify([]));
 
-    if (isGuest) {
-      const updated = [newConv, ...conversations];
+    setConversations(prev => {
+      const updated = [newConv, ...prev.filter(c => c.id !== newConv.id)];
       localStorage.setItem(LOCAL_STORAGE_CONVS_PREFIX + user.uid, JSON.stringify(updated));
-    } else {
+      return updated;
+    });
+
+    if (!isGuest) {
       try {
         await firestoreService.createConversation(newConv);
       } catch (e) {
@@ -188,35 +240,44 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (!user) return;
 
-    if (isGuest) {
-      const stored = localStorage.getItem(LOCAL_STORAGE_MSGS_PREFIX + convId);
-      const msgs: Message[] = stored ? JSON.parse(stored) : [];
-      setMessages(msgs);
-    } else {
+    // Remember active conversation ID across reloads
+    localStorage.setItem(LOCAL_STORAGE_ACTIVE_CONV_PREFIX + user.uid, convId);
+
+    // 1. Immediately display locally cached messages
+    const localRaw = localStorage.getItem(LOCAL_STORAGE_MSGS_PREFIX + convId);
+    if (localRaw) {
+      try {
+        const parsed: Message[] = JSON.parse(localRaw);
+        setMessages(parsed);
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    // 2. Refresh from Firestore if registered user
+    if (!isGuest) {
       try {
         const msgs = await firestoreService.getConversationMessages(convId);
-        setMessages(msgs);
-        // Cache locally for instant offline availability
-        if (msgs.length > 0) {
+        if (msgs && msgs.length > 0) {
+          setMessages(msgs);
           localStorage.setItem(LOCAL_STORAGE_MSGS_PREFIX + convId, JSON.stringify(msgs));
         }
       } catch (err) {
-        console.warn('Error fetching messages from Firestore, falling back to local cache:', err);
-        const stored = localStorage.getItem(LOCAL_STORAGE_MSGS_PREFIX + convId);
-        if (stored) {
-          try {
-            setMessages(JSON.parse(stored));
-          } catch (e) {
-            // ignore
-          }
-        }
+        console.warn('Error fetching messages from Firestore, continuing with local cache:', err);
       }
     }
   };
 
   // Delete a conversation
   const deleteConversation = async (convId: string) => {
-    setConversations(prev => prev.filter(c => c.id !== convId));
+    setConversations(prev => {
+      const filtered = prev.filter(c => c.id !== convId);
+      if (user) {
+        localStorage.setItem(LOCAL_STORAGE_CONVS_PREFIX + user.uid, JSON.stringify(filtered));
+      }
+      return filtered;
+    });
+
     if (activeConversation?.id === convId) {
       const remaining = conversations.filter(c => c.id !== convId);
       if (remaining.length > 0) {
@@ -228,11 +289,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (!user) return;
 
-    if (isGuest) {
-      const updated = conversations.filter(c => c.id !== convId);
-      localStorage.setItem(LOCAL_STORAGE_CONVS_PREFIX + user.uid, JSON.stringify(updated));
-      localStorage.removeItem(LOCAL_STORAGE_MSGS_PREFIX + convId);
-    } else {
+    localStorage.removeItem(LOCAL_STORAGE_MSGS_PREFIX + convId);
+
+    if (!isGuest) {
       try {
         await firestoreService.deleteConversation(convId);
       } catch (err) {
@@ -456,14 +515,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updatedMessages = [...messages, userMessage, assistantPlaceholder];
     setMessages(updatedMessages);
 
-    // Save user message
+    // Save user message immediately to local storage AND firestore
     if (user) {
-      if (isGuest) {
-        localStorage.setItem(
-          LOCAL_STORAGE_MSGS_PREFIX + currentConv.id,
-          JSON.stringify([...messages, userMessage])
-        );
-      } else {
+      localStorage.setItem(
+        LOCAL_STORAGE_MSGS_PREFIX + currentConv.id,
+        JSON.stringify([...messages, userMessage])
+      );
+      if (!isGuest) {
         firestoreService.saveMessage(userMessage).catch(err => console.warn('Save user msg error:', err));
       }
     }
@@ -494,18 +552,25 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
       (errorMsg: string) => {
         setIsGenerating(false);
-        setMessages(prev =>
-          prev.map(m =>
-            m.id === assistantMsgId
-              ? {
-                  ...m,
-                  content: accumulatedContent || 'Sorry, I encountered an issue while generating a response. Please try again.',
-                  isStreaming: false,
-                  error: errorMsg
-                }
-              : m
-          )
-        );
+        const errorContent = accumulatedContent || 'Sorry, I encountered an issue while generating a response. Please try again.';
+        const failedMessage: Message = {
+          ...assistantPlaceholder,
+          content: errorContent,
+          isStreaming: false,
+          error: errorMsg
+        };
+
+        setMessages(prev => {
+          const updated = prev.map(m => (m.id === assistantMsgId ? failedMessage : m));
+          if (user && currentConv) {
+            localStorage.setItem(LOCAL_STORAGE_MSGS_PREFIX + currentConv.id, JSON.stringify(updated));
+          }
+          return updated;
+        });
+
+        if (user && !isGuest) {
+          firestoreService.saveMessage(failedMessage).catch(e => console.warn('Save failed msg error:', e));
+        }
       },
       async (finalContent: string) => {
         setIsGenerating(false);
@@ -517,29 +582,33 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isStreaming: false
         };
 
+        const allMsgs = [...messages, userMessage, finalizedMessage];
+
         setMessages(prev =>
           prev.map(m => (m.id === assistantMsgId ? finalizedMessage : m))
         );
 
-        // Persist final assistant message
-        if (user) {
-          const allMsgs = [...messages, userMessage, finalizedMessage];
-          if (isGuest) {
-            localStorage.setItem(LOCAL_STORAGE_MSGS_PREFIX + currentConv!.id, JSON.stringify(allMsgs));
-            const updatedConvs = conversations.map(c =>
+        // Persist final assistant message and updated conversation for BOTH guest and registered users
+        if (user && currentConv) {
+          localStorage.setItem(LOCAL_STORAGE_MSGS_PREFIX + currentConv.id, JSON.stringify(allMsgs));
+          
+          setConversations(prev => {
+            const updated = prev.map(c =>
               c.id === currentConv!.id
-                ? { ...c, title: newTitle, updatedAt: Date.now(), lastMessage: finalContent.slice(0, 60) }
+                ? { ...c, title: newTitle, updatedAt: Date.now(), lastMessage: (finalContent || accumulatedContent).slice(0, 80) }
                 : c
             );
-            setConversations(updatedConvs);
-            localStorage.setItem(LOCAL_STORAGE_CONVS_PREFIX + user.uid, JSON.stringify(updatedConvs));
-          } else {
+            localStorage.setItem(LOCAL_STORAGE_CONVS_PREFIX + user.uid, JSON.stringify(updated));
+            return updated;
+          });
+
+          if (!isGuest) {
             try {
               await firestoreService.saveMessage(finalizedMessage);
-              await firestoreService.updateConversation(currentConv!.id, {
+              await firestoreService.updateConversation(currentConv.id, {
                 title: newTitle,
                 updatedAt: Date.now(),
-                lastMessage: finalContent.slice(0, 80)
+                lastMessage: (finalContent || accumulatedContent).slice(0, 80)
               });
             } catch (saveErr) {
               console.warn('Error persisting final message:', saveErr);
@@ -562,6 +631,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!lastUserMsg || lastUserMsg.role !== 'user') return;
 
     setMessages(msgsToKeep);
+    if (user && activeConversation) {
+      localStorage.setItem(LOCAL_STORAGE_MSGS_PREFIX + activeConversation.id, JSON.stringify(msgsToKeep));
+    }
     await sendMessage(lastUserMsg.content, lastUserMsg.attachments);
   };
 
@@ -573,6 +645,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const targetMsg = messages[msgIndex];
     const msgsSlice = messages.slice(0, msgIndex);
     setMessages(msgsSlice);
+    if (user && activeConversation) {
+      localStorage.setItem(LOCAL_STORAGE_MSGS_PREFIX + activeConversation.id, JSON.stringify(msgsSlice));
+    }
 
     await sendMessage(newContent, targetMsg.attachments);
   };

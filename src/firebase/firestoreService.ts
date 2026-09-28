@@ -15,9 +15,9 @@ import {
 import { db } from './config';
 import { Conversation, Message, SavedDocument, UserSettings } from '../types';
 
-const OFFLINE_CONVS_KEY = 'writemind_offline_convs_';
-const OFFLINE_MSGS_KEY = 'writemind_offline_msgs_';
-const OFFLINE_DOCS_KEY = 'writemind_offline_docs_';
+const OFFLINE_CONVS_KEY = 'writemind_convs_';
+const OFFLINE_MSGS_KEY = 'writemind_msgs_';
+const OFFLINE_DOCS_KEY = 'writemind_docs_';
 
 function getLocal<T>(key: string): T[] {
   try {
@@ -56,40 +56,52 @@ export const firestoreService = {
     const localCached = getLocal<Conversation>(OFFLINE_CONVS_KEY + userId);
 
     try {
+      // Single-field query avoids missing composite index errors
       const q = query(
         collection(db, 'conversations'),
-        where('userId', '==', userId),
-        orderBy('updatedAt', 'desc'),
-        limit(50)
+        where('userId', '==', userId)
       );
       const snapshot = await getDocs(q);
-      const remote = snapshot.docs.map(doc => doc.data() as Conversation);
-      if (remote.length > 0) {
-        setLocal(OFFLINE_CONVS_KEY + userId, remote);
-        return remote;
+      const remote = snapshot.docs.map(docSnap => docSnap.data() as Conversation);
+      
+      // Merge remote & local conversations without losing newly created local ones
+      const convMap = new Map<string, Conversation>();
+      localCached.forEach(c => convMap.set(c.id, c));
+      remote.forEach(c => convMap.set(c.id, c));
+      
+      const merged = Array.from(convMap.values()).sort(
+        (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)
+      );
+
+      if (merged.length > 0) {
+        setLocal(OFFLINE_CONVS_KEY + userId, merged);
+        return merged;
       }
       return localCached;
     } catch (e) {
-      try {
-        const qFallback = query(
-          collection(db, 'conversations'),
-          where('userId', '==', userId)
-        );
-        const snapshot = await getDocs(qFallback);
-        const list = snapshot.docs.map(doc => doc.data() as Conversation);
-        const sorted = list.sort((a, b) => b.updatedAt - a.updatedAt);
-        if (sorted.length > 0) {
-          setLocal(OFFLINE_CONVS_KEY + userId, sorted);
-          return sorted;
-        }
-      } catch (fallbackErr) {
-        // Return local cache when completely offline
-      }
+      console.warn('Firestore conversations query note:', e);
       return localCached;
     }
   },
 
   async updateConversation(convId: string, updates: Partial<Conversation>): Promise<void> {
+    // Update local cache across user conversations
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(OFFLINE_CONVS_KEY)) {
+          const list = getLocal<Conversation>(key);
+          const found = list.some(c => c.id === convId);
+          if (found) {
+            const updated = list.map(c => (c.id === convId ? { ...c, ...updates } : c));
+            setLocal(key, updated);
+          }
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
     try {
       const docRef = doc(db, 'conversations', convId);
       await updateDoc(docRef, updates);
@@ -99,6 +111,21 @@ export const firestoreService = {
   },
 
   async deleteConversation(convId: string): Promise<void> {
+    try {
+      // Remove from local cache
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(OFFLINE_CONVS_KEY)) {
+          const list = getLocal<Conversation>(key);
+          const updated = list.filter(c => c.id !== convId);
+          setLocal(key, updated);
+        }
+      }
+      localStorage.removeItem(OFFLINE_MSGS_KEY + convId);
+    } catch (e) {
+      // ignore
+    }
+
     try {
       // Delete conversation document
       await deleteDoc(doc(db, 'conversations', convId));
@@ -118,7 +145,9 @@ export const firestoreService = {
   // --- MESSAGES ---
   async saveMessage(message: Message): Promise<void> {
     const local = getLocal<Message>(OFFLINE_MSGS_KEY + message.conversationId);
-    const updated = [...local.filter(m => m.id !== message.id), message];
+    const updated = [...local.filter(m => m.id !== message.id), message].sort(
+      (a, b) => (a.createdAt || 0) - (b.createdAt || 0)
+    );
     setLocal(OFFLINE_MSGS_KEY + message.conversationId, updated);
 
     try {
@@ -133,39 +162,52 @@ export const firestoreService = {
     const localCached = getLocal<Message>(OFFLINE_MSGS_KEY + convId);
 
     try {
+      // Single-field query avoids index issues
       const q = query(
         collection(db, 'messages'),
-        where('conversationId', '==', convId),
-        orderBy('createdAt', 'asc')
+        where('conversationId', '==', convId)
       );
       const snapshot = await getDocs(q);
-      const remote = snapshot.docs.map(doc => doc.data() as Message);
-      if (remote.length > 0) {
-        setLocal(OFFLINE_MSGS_KEY + convId, remote);
-        return remote;
+      const remote = snapshot.docs.map(docSnap => docSnap.data() as Message);
+      
+      // Merge remote with local messages so in-flight or offline messages aren't lost
+      const msgMap = new Map<string, Message>();
+      localCached.forEach(m => msgMap.set(m.id, m));
+      remote.forEach(m => msgMap.set(m.id, m));
+
+      const merged = Array.from(msgMap.values()).sort(
+        (a, b) => (a.createdAt || 0) - (b.createdAt || 0)
+      );
+
+      if (merged.length > 0) {
+        setLocal(OFFLINE_MSGS_KEY + convId, merged);
+        return merged;
       }
       return localCached;
     } catch (e) {
-      try {
-        const qFallback = query(
-          collection(db, 'messages'),
-          where('conversationId', '==', convId)
-        );
-        const snapshot = await getDocs(qFallback);
-        const list = snapshot.docs.map(doc => doc.data() as Message);
-        const sorted = list.sort((a, b) => a.createdAt - b.createdAt);
-        if (sorted.length > 0) {
-          setLocal(OFFLINE_MSGS_KEY + convId, sorted);
-          return sorted;
-        }
-      } catch (fallbackErr) {
-        // Return local cache when completely offline
-      }
+      console.warn('Firestore messages query note:', e);
       return localCached;
     }
   },
 
   async updateMessage(messageId: string, content: string): Promise<void> {
+    // Update local cache across message stores
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(OFFLINE_MSGS_KEY)) {
+          const list = getLocal<Message>(key);
+          const found = list.some(m => m.id === messageId);
+          if (found) {
+            const updated = list.map(m => (m.id === messageId ? { ...m, content } : m));
+            setLocal(key, updated);
+          }
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
     try {
       const docRef = doc(db, 'messages', messageId);
       await updateDoc(docRef, { content });

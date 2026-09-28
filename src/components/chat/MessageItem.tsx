@@ -147,20 +147,20 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isLastAssista
 
   return (
     <div
-      className={`py-4 px-4 sm:px-8 transition-colors ${
+      className={`py-3 sm:py-4 px-2.5 sm:px-8 transition-colors ${
         isUser ? 'bg-transparent' : 'bg-[#0f1422]/60 border-y border-slate-800/40'
       }`}
     >
-      <div className={`max-w-4xl mx-auto flex items-start gap-3 sm:gap-4 ${isUser ? 'flex-row-reverse' : ''}`}>
+      <div className={`max-w-4xl mx-auto flex items-start gap-2.5 sm:gap-4 ${isUser ? 'flex-row-reverse' : ''}`}>
         {/* Avatar */}
         <div className="shrink-0 mt-0.5">
           {isUser ? (
-            <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 text-slate-300 flex items-center justify-center text-xs font-bold shadow-xs">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-800 border border-slate-700 text-slate-300 flex items-center justify-center text-xs font-bold shadow-xs">
               You
             </div>
           ) : (
             <div
-              className={`relative w-8 h-8 rounded-xl overflow-hidden bg-[#080d19] flex items-center justify-center transition-all duration-300 ${
+              className={`relative w-7 h-7 sm:w-8 sm:h-8 rounded-xl overflow-hidden bg-[#080d19] flex items-center justify-center transition-all duration-300 ${
                 message.isStreaming
                   ? 'ring-2 ring-indigo-400/80 shadow-lg shadow-indigo-500/40 animate-pulse-glow'
                   : 'shadow-md shadow-indigo-600/20 ring-1 ring-indigo-500/40'
@@ -182,7 +182,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isLastAssista
         </div>
 
         {/* Content & Actions */}
-        <div className={`min-w-0 ${isUser ? 'flex flex-col items-end max-w-[85%] sm:max-w-[75%]' : 'flex-1'}`}>
+        <div className={`min-w-0 ${isUser ? 'flex flex-col items-end max-w-[88%] sm:max-w-[75%]' : 'flex-1'}`}>
           {/* Header Role/Name & Model badge */}
           <div className={`flex items-center gap-2 mb-1.5 ${isUser ? 'justify-end' : 'justify-between'}`}>
             <span className="text-xs font-semibold text-slate-200">
@@ -196,7 +196,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isLastAssista
             {message.isStreaming && (
               <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-950/80 border border-indigo-500/40 text-[10px] text-indigo-300 font-medium animate-pulse">
                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping"></span>
-                <span>Generating short response...</span>
+                <span>Generating...</span>
               </span>
             )}
           </div>

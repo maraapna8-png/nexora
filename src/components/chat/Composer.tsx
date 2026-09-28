@@ -157,7 +157,7 @@ export const Composer: React.FC<ComposerProps> = () => {
 
   return (
     <div
-      className={`relative w-full max-w-4xl mx-auto px-3 sm:px-6 transition-all ${
+      className={`relative w-full max-w-4xl mx-auto px-2 sm:px-6 transition-all ${
         isDragging ? 'scale-[1.01]' : ''
       }`}
       onDragOver={(e) => {
@@ -179,37 +179,36 @@ export const Composer: React.FC<ComposerProps> = () => {
 
       {/* Voice listening pulse banner */}
       {isListening && (
-        <div className="mb-2 px-3.5 py-2 rounded-xl bg-indigo-950/80 border border-indigo-500/40 backdrop-blur-md flex items-center justify-between text-xs text-indigo-200 animate-in fade-in duration-200 shadow-lg shadow-indigo-950/40">
-          <div className="flex items-center gap-2.5">
-            <span className="relative flex h-3 w-3">
+        <div className="mb-2 px-3 py-2 rounded-xl bg-indigo-950/90 border border-indigo-500/40 backdrop-blur-md flex items-center justify-between text-xs text-indigo-200 animate-in fade-in duration-200 shadow-lg shadow-indigo-950/40">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
             </span>
-            <span className="font-semibold text-white">Listening...</span>
-            <span className="text-slate-300 hidden sm:inline">
+            <span className="font-semibold text-white truncate">Listening...</span>
+            <span className="text-slate-300 hidden sm:inline truncate">
               Speak in {settings.defaultLanguage || 'English'}
             </span>
             {/* Animated sound wave bars */}
-            <div className="flex items-center gap-0.5 h-3 ml-1">
-              <span className="w-1 bg-indigo-400 rounded-full h-2 animate-bounce [animation-delay:-0.3s]"></span>
-              <span className="w-1 bg-indigo-400 rounded-full h-3 animate-bounce [animation-delay:-0.15s]"></span>
-              <span className="w-1 bg-indigo-400 rounded-full h-1.5 animate-bounce"></span>
-              <span className="w-1 bg-indigo-400 rounded-full h-3.5 animate-bounce [animation-delay:-0.2s]"></span>
+            <div className="flex items-center gap-0.5 h-3 ml-0.5 shrink-0">
+              <span className="w-0.5 bg-indigo-400 rounded-full h-2 animate-bounce [animation-delay:-0.3s]"></span>
+              <span className="w-0.5 bg-indigo-400 rounded-full h-3 animate-bounce [animation-delay:-0.15s]"></span>
+              <span className="w-0.5 bg-indigo-400 rounded-full h-1.5 animate-bounce"></span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={stopListening}
-              className="px-2.5 py-1 rounded-lg bg-rose-600/90 hover:bg-rose-500 text-white text-[11px] font-semibold transition-colors flex items-center gap-1 shadow-xs"
+              className="px-2 py-1 rounded-lg bg-rose-600/90 hover:bg-rose-500 text-white text-[11px] font-semibold transition-colors flex items-center gap-1 shadow-xs"
               title="Stop voice recording"
             >
               <MicOff className="w-3 h-3 text-white" />
-              <span>Stop Voice</span>
+              <span>Stop</span>
             </button>
             <button
               onClick={handleSend}
-              className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold transition-colors shadow-xs flex items-center gap-1"
+              className="px-2 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold transition-colors shadow-xs flex items-center gap-1"
               title="Send recorded message"
             >
               <ArrowUp className="w-3 h-3 text-white" />
@@ -222,13 +221,13 @@ export const Composer: React.FC<ComposerProps> = () => {
       {/* Voice Error notice */}
       {voiceError && (
         <div className="mb-2 px-3 py-1.5 rounded-lg bg-rose-950/70 border border-rose-800/60 text-xs text-rose-300 flex items-center justify-between animate-in fade-in">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-400" />
-            <span>{voiceError}</span>
+            <span className="truncate">{voiceError}</span>
           </div>
           <button
             onClick={() => setVoiceError(null)}
-            className="text-rose-400 hover:text-white p-0.5"
+            className="text-rose-400 hover:text-white p-0.5 shrink-0 ml-2"
           >
             <X className="w-3 h-3" />
           </button>
@@ -247,11 +246,11 @@ export const Composer: React.FC<ComposerProps> = () => {
       >
         {/* Active Attachments Tray */}
         {activeAttachments.length > 0 && (
-          <div className="px-3 pt-3 pb-1 flex flex-wrap gap-2 border-b border-slate-800/80">
+          <div className="px-2.5 sm:px-3 pt-2.5 pb-1 flex flex-wrap gap-1.5 sm:gap-2 border-b border-slate-800/80">
             {activeAttachments.map((att) => (
               <div
                 key={att.id}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700/80 text-xs text-slate-200 group max-w-[240px] shadow-xs"
+                className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700/80 text-xs text-slate-200 group max-w-[200px] sm:max-w-[240px] shadow-xs"
               >
                 {att.status === 'processing' || att.status === 'uploading' ? (
                   <Loader2 className="w-3.5 h-3.5 text-indigo-400 animate-spin shrink-0" />
@@ -265,25 +264,25 @@ export const Composer: React.FC<ComposerProps> = () => {
                   <FileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 )}
 
-                <div className="truncate flex-1 min-w-0 font-medium">
+                <div className="truncate flex-1 min-w-0 font-medium text-[11px] sm:text-xs">
                   {att.name}
                 </div>
 
                 {att.status === 'ready' && (
-                  <span className="text-[10px] text-emerald-400 shrink-0 font-semibold">
-                    {att.type === 'word' ? 'Word Ready' : 'Ready'}
+                  <span className="text-[9px] sm:text-[10px] text-emerald-400 shrink-0 font-semibold">
+                    Ready
                   </span>
                 )}
 
                 {att.status === 'error' && (
-                  <span className="text-[10px] text-red-400 shrink-0 font-semibold">
+                  <span className="text-[9px] sm:text-[10px] text-red-400 shrink-0 font-semibold">
                     Failed
                   </span>
                 )}
 
                 <button
                   onClick={() => removeAttachment(att.id)}
-                  className="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white"
+                  className="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white shrink-0"
                   title="Remove attachment"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -294,20 +293,20 @@ export const Composer: React.FC<ComposerProps> = () => {
         )}
 
         {/* Text Input Row */}
-        <div className="p-2 sm:p-3 flex items-end gap-2">
+        <div className="p-1.5 sm:p-3 flex items-end gap-1 sm:gap-2">
           {/* Attachment Button */}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="p-2.5 rounded-xl text-slate-400 hover:text-indigo-300 hover:bg-slate-800/80 transition-colors shrink-0"
+            className="p-2 sm:p-2.5 rounded-xl text-slate-400 hover:text-indigo-300 hover:bg-slate-800/80 transition-colors shrink-0"
             title="Attach MS Word (.docx), PDF, Image, or Notes"
             disabled={isGenerating}
           >
-            <Paperclip className="w-5 h-5" />
+            <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
           {/* Expanding Textarea */}
-          <div className="flex-1 relative">
+          <div className="flex-1 relative min-w-0">
             <textarea
               ref={textareaRef}
               value={input}
@@ -317,16 +316,16 @@ export const Composer: React.FC<ComposerProps> = () => {
                 isListening
                   ? "Speak now... listening to your voice..."
                   : activeAttachments.length > 0
-                  ? "Ask anything about the attached file (e.g., 'Explain in Urdu', 'Create 50 MCQs', 'Summarize key points')..."
-                  : "Ask Nexora to write, analyze, summarize, or click the mic to voice your prompt..."
+                  ? "Ask about the attached file..."
+                  : "Ask Nexora or click mic to speak..."
               }
               rows={1}
               disabled={isGenerating}
-              className="w-full bg-transparent text-slate-100 placeholder-slate-500 text-sm sm:text-[15px] focus:outline-hidden resize-none py-2 px-1 max-h-[180px] leading-relaxed"
+              className="w-full bg-transparent text-slate-100 placeholder-slate-500 text-xs sm:text-[15px] focus:outline-hidden resize-none py-1.5 sm:py-2 px-1 max-h-[160px] sm:max-h-[180px] leading-relaxed"
             />
             {/* Interim live speech recognition ghost text */}
             {interimVoiceText && (
-              <span className="text-indigo-300 italic text-sm sm:text-[15px] block px-1 pb-1">
+              <span className="text-indigo-300 italic text-xs sm:text-[15px] block px-1 pb-1">
                 "{interimVoiceText}..."
               </span>
             )}
@@ -336,7 +335,7 @@ export const Composer: React.FC<ComposerProps> = () => {
           <button
             type="button"
             onClick={toggleListening}
-            className={`p-2.5 rounded-xl transition-all shrink-0 flex items-center justify-center ${
+            className={`p-2 sm:p-2.5 rounded-xl transition-all shrink-0 flex items-center justify-center ${
               isListening
                 ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/40 ring-2 ring-rose-400 animate-pulse'
                 : 'text-slate-400 hover:text-indigo-300 hover:bg-slate-800/80'
@@ -345,9 +344,9 @@ export const Composer: React.FC<ComposerProps> = () => {
             disabled={isGenerating}
           >
             {isListening ? (
-              <MicOff className="w-5 h-5 text-white" />
+              <MicOff className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             ) : (
-              <Mic className="w-5 h-5" />
+              <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
             )}
           </button>
 
@@ -355,30 +354,30 @@ export const Composer: React.FC<ComposerProps> = () => {
           {isGenerating ? (
             <button
               onClick={stopGeneration}
-              className="p-2.5 rounded-xl bg-rose-600/90 hover:bg-rose-500 text-white font-medium transition-all shadow-md shadow-rose-600/20 shrink-0 flex items-center justify-center animate-pulse"
+              className="p-2 sm:p-2.5 rounded-xl bg-rose-600/90 hover:bg-rose-500 text-white font-medium transition-all shadow-md shadow-rose-600/20 shrink-0 flex items-center justify-center animate-pulse"
               title="Stop Generating"
             >
-              <Square className="w-4 h-4 fill-white" />
+              <Square className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-white" />
             </button>
           ) : (
             <button
               onClick={handleSend}
               disabled={(!input.trim() && !interimVoiceText && activeAttachments.length === 0) || hasUploading}
-              className={`p-2.5 rounded-xl transition-all shrink-0 flex items-center justify-center ${
+              className={`p-2 sm:p-2.5 rounded-xl transition-all shrink-0 flex items-center justify-center ${
                 input.trim() || interimVoiceText || activeAttachments.length > 0
                   ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30'
                   : 'bg-slate-800 text-slate-500 cursor-not-allowed'
               }`}
               title="Send Message"
             >
-              <ArrowUp className="w-4 h-4 stroke-[2.5]" />
+              <ArrowUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
             </button>
           )}
         </div>
 
         {/* Footer Subtext & Quick Indicators */}
-        <div className="px-4 pb-2.5 pt-0.5 flex items-center justify-between text-[11px] text-slate-500">
-          <div className="flex items-center gap-3">
+        <div className="px-3 sm:px-4 pb-2 pt-0.5 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500">
+          <div className="flex items-center gap-2 sm:gap-3">
             <span className="flex items-center gap-1 text-slate-400">
               <Zap className="w-3 h-3 text-indigo-400" />
               <span>{activeModel.replace('gemini-', 'Nexora ')}</span>
@@ -392,9 +391,9 @@ export const Composer: React.FC<ComposerProps> = () => {
             )}
           </div>
 
-          <div className="text-[10px] text-slate-500 flex items-center gap-2">
+          <div className="text-[9px] sm:text-[10px] text-slate-500 flex items-center gap-2">
             <span className="hidden sm:inline">Voice & Text enabled •</span>
-            <span>Shift + Enter for newline</span>
+            <span className="hidden xs:inline">Shift + Enter for newline</span>
           </div>
         </div>
       </div>
