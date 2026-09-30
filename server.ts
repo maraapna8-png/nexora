@@ -15,10 +15,13 @@ app.use(express.urlencoded({ extended: true, limit: '35mb' }));
 
 // Lazy GoogleGenAI initialization
 let genAIClient: GoogleGenAI | null = null;
-function getGenAIClient(): GoogleGenAI {
-  const apiKey = process.env.GEMINI_API_KEY;
+function getGenAIClient(customApiKey?: string): GoogleGenAI {
+  const apiKey = (customApiKey && customApiKey.trim()) || process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY environment variable is missing.');
+  }
+  if (customApiKey && customApiKey.trim()) {
+    return new GoogleGenAI({ apiKey: customApiKey.trim() });
   }
   if (!genAIClient) {
     genAIClient = new GoogleGenAI({ apiKey });
@@ -43,6 +46,13 @@ const AVAILABLE_MODELS = [
     recommendedFor: 'Everyday writing, PDF queries & instant analysis'
   },
   {
+    id: 'gemini-flash-latest',
+    name: 'Nexora Flash Latest',
+    badge: 'High Availability',
+    description: 'General-purpose high speed generation model with strong multimodal support.',
+    recommendedFor: 'Reliable responses, summaries & text processing'
+  },
+  {
     id: 'gemini-3.1-pro-preview',
     name: 'Nexora 3.1 Pro',
     badge: 'Deep Reasoning',
@@ -50,6 +60,34 @@ const AVAILABLE_MODELS = [
     recommendedFor: 'Complex legal/technical PDFs, advanced code & comprehensive essays'
   }
 ];
+
+export const FOUNDER_INFO_MARKDOWN = `My founder is **Muhammad Abdullah Azam** (M. Abdullah Azam), a creative **Software Developer, Web Developer, Web App Developer, Android App Developer, Video Creator, and CV Maker**. He creates modern, responsive, and user-friendly digital solutions for individuals, businesses, and organizations.
+
+### Skills
+
+* 💻 **Software Development** — Building practical and professional software for business and for school etc 
+* 🌐 **Web Development** — Creating modern, responsive, and professional websites
+* 📱 **Android App Development** — Creating useful and user-friendly Android applications
+* 🎬 **Video Creation** — Creating promotional and business videos
+* 📄 **CV & Resume Design** — Designing professional and attractive CVs
+* ⚡ **Animations & Interactive Effects** — Adding smooth animations and interactive experiences
+* 💼 **Business Solutions** — Developing digital solutions tailored to business needs
+* 📱 **Responsive Design** — Ensuring websites and web apps work smoothly across devices`;
+
+export function isFounderQuery(query: string): boolean {
+  if (!query || typeof query !== 'string') return false;
+  const q = query.trim().toLowerCase();
+  if (/founder|creator|who\s+(created|made|built|developed)\s+you|who\s+is\s+your\s+(founder|developer|creator|maker)|who\s+are\s+you\s+made\s+by/i.test(q)) {
+    return true;
+  }
+  if (/(founder\s*k(o|au)n|kis\s*ne\s*ban(a|aa)ya|apko\s*kisne|tumhe\s*kisne|tumhara\s*founder|apka\s*founder)/i.test(q)) {
+    return true;
+  }
+  if (/\b(abdullah\s+azam|m\.?\s*abdullah\s+azam|muhammad\s+abdullah)\b/i.test(q)) {
+    return true;
+  }
+  return false;
+}
 
 // Helper to construct system instructions based on style, language, and length
 function buildSystemInstruction(
@@ -59,6 +97,15 @@ function buildSystemInstruction(
   customInstructions?: string
 ): string {
   let prompt = `You are Nexora (Nexora AI), an elite, lightning-fast AI writing assistant and document-analysis engine.
+
+MANDATORY FOUNDER & CREATOR IDENTITY:
+When the user asks who is your founder, creator, developer, or who made/built you, or inquires about Muhammad Abdullah Azam:
+You MUST answer that your founder is Muhammad Abdullah Azam (M. Abdullah Azam) and provide these exact details and skills:
+"""
+${FOUNDER_INFO_MARKDOWN}
+"""
+If asked in Urdu, Hindi, or any other language (e.g., "tumhara founder kon hai", "kisne banaya"), provide this exact information about Muhammad Abdullah Azam and his skills clearly in that language.
+
 Your primary capabilities include:
 1. Deep document & PDF analysis: reading text, identifying structure, extracting key insights, answering specific questions, summarizing complex texts, and generating structured study notes & MCQs.
 2. Legal Citation & Judgment Reporting: when requested to format, extract, or create citations for reporting from court judgments, provide precise, standard legal citations across multiple reporting styles (Bluebook, OSCOLA, Neutral Citation, AIR, SCC, PLD, SCMR, US Supreme Court, etc.) complete with case title in italics, court name, decision year, volume, law reporter, page/paragraph pinpoint references, and a concise parenthetical ratio.
@@ -135,7 +182,36 @@ app.post('/api/chat/stream', async (req: Request, res: Response) => {
       return;
     }
 
-    const ai = getGenAIClient();
+    // Direct instantaneous streaming for founder inquiries
+    const lastUserMsg = messages[messages.length - 1];
+    const lastText = typeof lastUserMsg?.content === 'string' ? lastUserMsg.content : '';
+    const hasAttachments = lastUserMsg?.attachments && lastUserMsg.attachments.length > 0;
+    if (isFounderQuery(lastText) && !hasAttachments) {
+      const chunks = FOUNDER_INFO_MARKDOWN.match(/.{1,30}/gs) || [FOUNDER_INFO_MARKDOWN];
+      for (const chunk of chunks) {
+        res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
+        res.flushHeaders?.();
+        await new Promise(r => setTimeout(r, 15));
+      }
+      res.write(`data: [DONE]\n\n`);
+      res.end();
+      return;
+    }
+
+    const customApiKey =
+      (req.headers['x-gemini-api-key'] as string) ||
+      (req.headers['authorization']?.replace(/^Bearer\s+/i, '') as string) ||
+      req.body?.customApiKey;
+
+    let ai: GoogleGenAI;
+    try {
+      ai = getGenAIClient(customApiKey);
+    } catch (e: any) {
+      res.write(`data: ${JSON.stringify({ error: 'Please enter your Gemini API key in Settings (⚙️) to start chatting.' })}\n\n`);
+      res.end();
+      return;
+    }
+
     const systemInstruction = buildSystemInstruction(language, writingStyle, responseLength, customInstruction);
 
     // Format contents for @google/genai SDK
@@ -176,21 +252,17 @@ app.post('/api/chat/stream', async (req: Request, res: Response) => {
       };
     });
 
-    // Primary model and fallback queue
+    // Primary model and resilient fallback queue (only valid, supported models)
     const requestedModel = AVAILABLE_MODELS.some(m => m.id === model) ? model : 'gemini-3.1-flash-lite';
-    const modelsToTry = [requestedModel];
-    if (!modelsToTry.includes('gemini-3.1-flash-lite')) {
-      modelsToTry.push('gemini-3.1-flash-lite');
-    }
-    if (!modelsToTry.includes('gemini-3.1-pro-preview')) {
-      modelsToTry.push('gemini-3.1-pro-preview');
-    }
-    if (!modelsToTry.includes('gemini-3.8-flash')) {
-      modelsToTry.push('gemini-3.8-flash');
-    }
+    const modelsToTry = [
+      requestedModel,
+      'gemini-3.1-flash-lite',
+      'gemini-3.8-flash',
+      'gemini-flash-latest'
+    ].filter((m, idx, arr) => arr.indexOf(m) === idx);
 
     let streamStarted = false;
-    let lastErrorMsg = 'AI service is temporarily busy. Please retry in a few seconds.';
+    let quotaHit = false;
 
     for (const targetModel of modelsToTry) {
       try {
@@ -218,25 +290,36 @@ app.post('/api/chat/stream', async (req: Request, res: Response) => {
         }
       } catch (streamErr: any) {
         const rawErrStr = streamErr?.message || String(streamErr || '');
-        if (rawErrStr.includes('429') || rawErrStr.includes('RESOURCE_EXHAUSTED') || rawErrStr.includes('quota')) {
-          lastErrorMsg = 'Selected model reached temporary quota. Retrying with high-availability model...';
-          console.info(`[Model Fallback] ${targetModel} hit quota limit, trying next available model.`);
-        } else if (rawErrStr.includes('503') || rawErrStr.includes('UNAVAILABLE')) {
-          lastErrorMsg = 'Selected model is temporarily busy. Retrying with high-availability model...';
-          console.info(`[Model Fallback] ${targetModel} is temporarily unavailable, trying next available model.`);
-        } else {
-          lastErrorMsg = streamErr?.message || 'AI generation encountered an issue.';
-          console.info(`[Model Fallback] ${targetModel} failed, trying next available model.`);
+        if (
+          rawErrStr.includes('429') ||
+          rawErrStr.includes('RESOURCE_EXHAUSTED') ||
+          rawErrStr.includes('quota') ||
+          rawErrStr.includes('PERMISSION_DENIED') ||
+          rawErrStr.includes('403')
+        ) {
+          quotaHit = true;
         }
 
         if (streamStarted) {
           // If we already sent partial text chunks, end stream gracefully
-          res.write(`data: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`);
+          res.write('data: [DONE]\n\n');
           res.end();
           return;
         }
-        // Otherwise continue loop to next target model
+
+        // If the shared project key reached quota/denied, avoid looping over all other models with the same failing key
+        if (quotaHit && !customApiKey) {
+          break;
+        }
       }
+    }
+
+    if (quotaHit) {
+      const quotaMsg = `⚠️ **Gemini API Token Quota Reached**\n\nThe shared environment Gemini API token quota has been reached.\n\n**To continue without interruption:**\n1. Open **Settings** (⚙️ icon in the top header).\n2. Navigate to **Nexora AI Engine**.\n3. Enter your personal free Gemini API Key (get one instantly at [aistudio.google.com](https://aistudio.google.com/app/apikey)).\n4. Click **Save Key** — Nexora will immediately use your personal key!`;
+      res.write(`data: ${JSON.stringify({ text: quotaMsg })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return;
     }
 
     // If all models failed before streaming
@@ -265,7 +348,17 @@ app.post('/api/generate', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Prompt or content is required' });
     }
 
-    const ai = getGenAIClient();
+    const customApiKey =
+      (req.headers['x-gemini-api-key'] as string) ||
+      (req.headers['authorization']?.replace(/^Bearer\s+/i, '') as string) ||
+      req.body?.customApiKey;
+
+    let ai: GoogleGenAI;
+    try {
+      ai = getGenAIClient(customApiKey);
+    } catch (e: any) {
+      return res.status(400).json({ error: 'Please enter your Gemini API key in Settings (⚙️) to run AI actions.' });
+    }
 
     let fullPrompt = '';
     let systemInstruction = buildSystemInstruction();
@@ -344,14 +437,17 @@ ${prompt || contextText}
     parts.push({ text: fullPrompt });
 
     const requestedModel = AVAILABLE_MODELS.some(m => m.id === model) ? model : 'gemini-3.1-flash-lite';
-    const modelsToTry = [requestedModel];
-    if (!modelsToTry.includes('gemini-3.1-flash-lite')) modelsToTry.push('gemini-3.1-flash-lite');
-    if (!modelsToTry.includes('gemini-3.1-pro-preview')) modelsToTry.push('gemini-3.1-pro-preview');
-    if (!modelsToTry.includes('gemini-3.8-flash')) modelsToTry.push('gemini-3.8-flash');
+    const modelsToTry = [
+      requestedModel,
+      'gemini-3.1-flash-lite',
+      'gemini-3.8-flash',
+      'gemini-flash-latest'
+    ].filter((m, idx, arr) => arr.indexOf(m) === idx);
 
     let responseText = '';
     let usedModel = requestedModel;
     let genError: any = null;
+    let quotaHit = false;
 
     for (const targetModel of modelsToTry) {
       try {
@@ -370,11 +466,28 @@ ${prompt || contextText}
         }
       } catch (e: any) {
         genError = e;
-        console.info(`[Generate Fallback] ${targetModel} call failed, trying next fallback model.`);
+        const rawErrStr = e?.message || String(e || '');
+        if (
+          rawErrStr.includes('429') ||
+          rawErrStr.includes('RESOURCE_EXHAUSTED') ||
+          rawErrStr.includes('quota') ||
+          rawErrStr.includes('PERMISSION_DENIED') ||
+          rawErrStr.includes('403')
+        ) {
+          quotaHit = true;
+        }
+        if (quotaHit && !customApiKey) {
+          break;
+        }
       }
     }
 
     if (!responseText) {
+      if (quotaHit) {
+        return res.status(429).json({
+          error: 'Shared Gemini API token quota reached. Please enter your personal Gemini API key in Settings (⚙️) to continue.'
+        });
+      }
       throw genError || new Error('Failed to generate content');
     }
 

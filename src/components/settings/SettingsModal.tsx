@@ -33,7 +33,7 @@ interface SettingsModalProps {
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const { settings, updateSettings } = useSettings();
   const { user, logout, isGuest } = useAuth();
-  const [activeTab, setActiveTab] = useState<'preferences' | 'model' | 'account'>('preferences');
+  const [activeTab, setActiveTab] = useState<'preferences' | 'model' | 'account' | 'founder'>('preferences');
   const [saveToast, setSaveToast] = useState(false);
 
   // API Key state
@@ -142,6 +142,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             }`}
           >
             Account & Security
+          </button>
+          <button
+            onClick={() => setActiveTab('founder')}
+            className={`pb-3 px-1 border-b-2 transition-colors ${
+              activeTab === 'founder'
+                ? 'border-indigo-500 text-indigo-300'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Founder & Skills
           </button>
         </div>
 
@@ -466,6 +476,118 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 <LogOut className="w-4 h-4" />
                 <span>Log Out of Session</span>
               </button>
+            </div>
+          )}
+
+          {activeTab === 'founder' && (
+            <div className="space-y-6">
+              {/* Founder Header Card */}
+              <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-950/40 via-slate-900 to-slate-900/90 border border-indigo-500/30 shadow-lg">
+                <div className="flex items-start gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white font-black text-xl shadow-md shadow-indigo-600/30 shrink-0">
+                    MA
+                  </div>
+                  <div>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-950 border border-indigo-800/80 text-indigo-300 text-[10px] font-semibold uppercase tracking-wider mb-1.5">
+                      <Sparkles className="w-3 h-3 text-indigo-400" />
+                      Nexora Founder & Creator
+                    </div>
+                    <h3 className="text-base sm:text-lg font-bold text-white">Muhammad Abdullah Azam</h3>
+                    <p className="text-xs text-indigo-300 font-medium">M. Abdullah Azam</p>
+                    <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                      A creative <strong>Software Developer, Web Developer, Web App Developer, Android App Developer, Video Creator, and CV Maker</strong>. Creating modern, responsive, and user-friendly digital solutions for individuals, businesses, and organizations.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Skills Grid */}
+              <div>
+                <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3">
+                  Core Skills & Expertise
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/90 hover:border-indigo-500/40 transition-colors">
+                    <div className="flex items-center gap-2 font-semibold text-white text-xs mb-1">
+                      <span>💻</span>
+                      <span>Software Development</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Building practical and professional software for business, school, and enterprise systems.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/90 hover:border-indigo-500/40 transition-colors">
+                    <div className="flex items-center gap-2 font-semibold text-white text-xs mb-1">
+                      <span>🌐</span>
+                      <span>Web Development</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Creating modern, responsive, and professional high-performance websites and web applications.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/90 hover:border-indigo-500/40 transition-colors">
+                    <div className="flex items-center gap-2 font-semibold text-white text-xs mb-1">
+                      <span>📱</span>
+                      <span>Android App Development</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Creating useful, smooth, and user-friendly Android native applications.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/90 hover:border-indigo-500/40 transition-colors">
+                    <div className="flex items-center gap-2 font-semibold text-white text-xs mb-1">
+                      <span>🎬</span>
+                      <span>Video Creation</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Creating promotional, marketing, and commercial business videos.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/90 hover:border-indigo-500/40 transition-colors">
+                    <div className="flex items-center gap-2 font-semibold text-white text-xs mb-1">
+                      <span>📄</span>
+                      <span>CV & Resume Design</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Designing standout, ATS-compliant, and visually attractive professional CVs and resumes.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/90 hover:border-indigo-500/40 transition-colors">
+                    <div className="flex items-center gap-2 font-semibold text-white text-xs mb-1">
+                      <span>⚡</span>
+                      <span>Animations & Interactive Effects</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Crafting ultra-smooth interactive experiences, reactive micro-interactions, and visual flair.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/90 hover:border-indigo-500/40 transition-colors">
+                    <div className="flex items-center gap-2 font-semibold text-white text-xs mb-1">
+                      <span>💼</span>
+                      <span>Business Solutions</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Developing end-to-end digital solutions tailored to specialized business workflows.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/90 hover:border-indigo-500/40 transition-colors">
+                    <div className="flex items-center gap-2 font-semibold text-white text-xs mb-1">
+                      <span>📱</span>
+                      <span>Responsive Design</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Ensuring websites and web apps work seamlessly across phones, tablets, and desktops.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>

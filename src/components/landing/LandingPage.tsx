@@ -314,9 +314,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               Get Started for Free
             </button>
           </div>
-          <p className="text-xs text-slate-600 pt-6">
-            © {new Date().getFullYear()} Nexora. Powered by Nexora AI & Firebase.
-          </p>
+          <div className="pt-6 border-t border-slate-800/60 mt-8 space-y-1">
+            <p className="text-xs text-slate-400 font-medium">
+              Founded & Developed by <span className="text-indigo-400 font-semibold">Muhammad Abdullah Azam</span> (M. Abdullah Azam)
+            </p>
+            <p className="text-[11px] text-slate-500">
+              Software Developer • Web & Android App Developer • Video Creator • CV Maker
+            </p>
+            <p className="text-[11px] text-slate-600 pt-2">
+              © {new Date().getFullYear()} Nexora. All rights reserved.
+            </p>
+          </div>
         </div>
       </footer>
     </div>

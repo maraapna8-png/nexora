@@ -4,6 +4,19 @@
 
 Website: https://ai-nexoraa.netlify.app/
 
+## Founder & Creator
+- **Founder**: **Muhammad Abdullah Azam** (M. Abdullah Azam)
+- **Role**: Software Developer, Web Developer, Web App Developer, Android App Developer, Video Creator, and CV Maker.
+- **Skills**:
+  - Software Development (Business & School software)
+  - Web Development (Modern, responsive websites)
+  - Android App Development (User-friendly Android applications)
+  - Video Creation (Promotional & business videos)
+  - CV & Resume Design (Professional and attractive CVs)
+  - Animations & Interactive Effects (Smooth interactive UI experiences)
+  - Business Solutions (Custom enterprise and business software)
+  - Responsive Design (Seamless across mobile, tablet, and desktop)
+
 ## Capabilities
 - **Deep Document & PDF Analysis**: Extract semantic structure, search full PDF contents, synthesize lengthy research papers, and generate MCQs.
 - **Legal Citation & Judgment Reporting**: Standardized legal citation generation supporting Bluebook, OSCOLA, Neutral Citation, AIR, SCC, PLD, and SCMR formats.

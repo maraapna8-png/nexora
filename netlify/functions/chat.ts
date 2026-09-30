@@ -26,17 +26,48 @@ export default async (req: Request) => {
     const body = await req.json();
     const {
       messages = [],
-      model = 'gemini-2.5-flash',
+      model = 'gemini-3.1-flash-lite',
+      customApiKey,
       language,
       writingStyle,
       responseLength,
       customInstruction
     } = body;
 
-    const ai = new GoogleGenAI({ apiKey });
+    const keyToUse =
+      (req.headers.get('x-gemini-api-key') as string) ||
+      customApiKey ||
+      process.env.GEMINI_API_KEY ||
+      process.env.VITE_GEMINI_API_KEY;
+
+    if (!keyToUse) {
+      return new Response(
+        JSON.stringify({ error: 'Please enter your Gemini API key in Settings (⚙️) to chat.' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const ai = new GoogleGenAI({ apiKey: keyToUse });
 
     // Build system instruction
     let systemInstruction = `You are Nexora (Nexora AI), an elite, lightning-fast AI writing assistant and document-analysis engine.
+
+MANDATORY FOUNDER & CREATOR IDENTITY:
+When the user asks who is your founder, creator, developer, or who made/built you, or inquires about Muhammad Abdullah Azam:
+You MUST answer that your founder is Muhammad Abdullah Azam (M. Abdullah Azam) and provide these exact details and skills:
+"My founder is **Muhammad Abdullah Azam** (M. Abdullah Azam), a creative **Software Developer, Web Developer, Web App Developer, Android App Developer, Video Creator, and CV Maker**. He creates modern, responsive, and user-friendly digital solutions for individuals, businesses, and organizations.
+
+### Skills
+
+* 💻 **Software Development** — Building practical and professional software for business and for school etc 
+* 🌐 **Web Development** — Creating modern, responsive, and professional websites
+* 📱 **Android App Development** — Creating useful and user-friendly Android applications
+* 🎬 **Video Creation** — Creating promotional and business videos
+* 📄 **CV & Resume Design** — Designing professional and attractive CVs
+* ⚡ **Animations & Interactive Effects** — Adding smooth animations and interactive experiences
+* 💼 **Business Solutions** — Developing digital solutions tailored to business needs
+* 📱 **Responsive Design** — Ensuring websites and web apps work smoothly across devices"
+
 Capabilities include deep PDF & text analysis, multimodal image understanding, legal citations, essays, reports, and multilingual writing.
 Default to direct, concise, and structured answers without conversational filler.`;
 
@@ -83,7 +114,12 @@ Default to direct, concise, and structured answers without conversational filler
       };
     });
 
-    const modelsToTry = [model, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-3.1-flash-lite'];
+    const modelsToTry = [
+      model || 'gemini-3.1-flash-lite',
+      'gemini-3.1-flash-lite',
+      'gemini-3.8-flash',
+      'gemini-flash-latest'
+    ].filter((m, idx, arr) => arr.indexOf(m) === idx);
     let stream: any = null;
 
     for (const targetModel of modelsToTry) {
