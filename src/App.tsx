@@ -13,16 +13,52 @@ import { LegalCitationModal } from './components/modals/LegalCitationModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { LandingPage } from './components/landing/LandingPage';
 import { SplashScreen } from './components/common/SplashScreen';
+import { NamePromptModal } from './components/common/NamePromptModal';
 
 const MainWorkspace: React.FC = () => {
   const { user, loading, loginAsGuest } = useAuth();
   const [activeView, setActiveView] = useState<'chat' | 'documents' | 'history'>('chat');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'preferences' | 'model' | 'account' | 'founder'>('preferences');
   const [searchOpen, setSearchOpen] = useState(false);
   const [legalCitationOpen, setLegalCitationOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
+  const [namePromptOpen, setNamePromptOpen] = useState(false);
+
+  // When user enters workspace / logs in, ask what their name is
+  useEffect(() => {
+    if (user) {
+      const hasAsked = localStorage.getItem('nexora_asked_user_name');
+      const preferred = localStorage.getItem('nexora_user_preferred_name');
+      if (!hasAsked || !preferred) {
+        const timer = setTimeout(() => {
+          setNamePromptOpen(true);
+        }, 300);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const handleOpenNamePrompt = () => {
+      setNamePromptOpen(true);
+    };
+    window.addEventListener('open-name-prompt-modal', handleOpenNamePrompt);
+    return () => window.removeEventListener('open-name-prompt-modal', handleOpenNamePrompt);
+  }, []);
+
+  useEffect(() => {
+    const handleOpenSettings = (e: any) => {
+      if (e.detail?.tab) {
+        setSettingsTab(e.detail.tab);
+      }
+      setSettingsOpen(true);
+    };
+    window.addEventListener('open-settings-modal', handleOpenSettings);
+    return () => window.removeEventListener('open-settings-modal', handleOpenSettings);
+  }, []);
 
   // If loading user auth, show clean backdrop
   if (loading) {
@@ -100,6 +136,7 @@ const MainWorkspace: React.FC = () => {
       <SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        initialTab={settingsTab}
       />
       <SearchModal
         isOpen={searchOpen}
@@ -109,6 +146,10 @@ const MainWorkspace: React.FC = () => {
       <LegalCitationModal
         isOpen={legalCitationOpen}
         onClose={() => setLegalCitationOpen(false)}
+      />
+      <NamePromptModal
+        isOpen={namePromptOpen}
+        onClose={() => setNamePromptOpen(false)}
       />
     </div>
   );

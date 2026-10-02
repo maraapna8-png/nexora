@@ -19,7 +19,9 @@ import {
   Volume2,
   VolumeX,
   Square,
-  Radio
+  Radio,
+  AlertCircle,
+  Key
 } from 'lucide-react';
 import { Message, Attachment } from '../../types';
 import { copyToClipboard, downloadAsPlainText, downloadAsMarkdown, downloadAsPDF } from '../../utils/exportUtils';
@@ -271,6 +273,25 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isLastAssista
               ) : (
                 <ThinkingIndicator />
               )}
+            </div>
+          )}
+
+          {message.error && (
+            <div className="mt-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-semibold text-amber-300">Nexora Assistant Notice</p>
+                <p className="mt-0.5 text-amber-200/90">{message.error}</p>
+                <button
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('open-settings-modal', { detail: { tab: 'model' } }));
+                  }}
+                  className="mt-2 px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors border border-amber-500/30"
+                >
+                  <Key className="w-3.5 h-3.5" />
+                  <span>Configure Gemini API Key in Settings</span>
+                </button>
+              </div>
             </div>
           )}
 

@@ -18,7 +18,8 @@ import {
   EyeOff,
   ExternalLink,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { useAuth } from '../../context/AuthContext';
@@ -28,9 +29,10 @@ import { geminiClient } from '../../services/geminiClient';
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: 'preferences' | 'model' | 'account' | 'founder';
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialTab }) => {
   const { settings, updateSettings } = useSettings();
   const { user, logout, isGuest } = useAuth();
   const [activeTab, setActiveTab] = useState<'preferences' | 'model' | 'account' | 'founder'>('preferences');
@@ -44,11 +46,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const [keyTestStatus, setKeyTestStatus] = useState<{ ok: boolean; msg: string } | null>(null);
 
   useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  useEffect(() => {
+    const handleOpenSettings = (e: any) => {
+      if (e.detail?.tab) {
+        setActiveTab(e.detail.tab);
+      }
+    };
+    window.addEventListener('open-settings-modal', handleOpenSettings);
+    return () => window.removeEventListener('open-settings-modal', handleOpenSettings);
+  }, []);
+
+  useEffect(() => {
     if (isOpen) {
+      if (initialTab) setActiveTab(initialTab);
       setApiKeyInput(geminiClient.getClientApiKey());
       setKeyTestStatus(null);
     }
-  }, [isOpen]);
+  }, [isOpen, initialTab]);
 
   const handleSaveApiKey = () => {
     geminiClient.setClientApiKey(apiKeyInput.trim());
@@ -448,9 +467,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                       (user?.displayName?.[0] || user?.email?.[0] || 'W').toUpperCase()
                     )}
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-slate-100 text-sm">{user?.displayName || 'Nexora User'}</h3>
-                    <p className="text-xs text-slate-400">{user?.email || 'Guest Mode'}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-semibold text-slate-100 text-sm truncate">{user?.displayName || 'Nexora User'}</h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          window.dispatchEvent(new CustomEvent('open-name-prompt-modal'));
+                        }}
+                        className="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium px-2 py-0.5 rounded-lg bg-indigo-950/60 border border-indigo-800/60 transition-colors shrink-0"
+                      >
+                        Change Name
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-400 truncate">{user?.email || 'Guest Mode'}</p>
                   </div>
                 </div>
 

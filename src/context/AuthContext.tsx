@@ -16,11 +16,13 @@ interface AuthContextType {
   loginAsGuest: () => void;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  updateUserName: (name: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const GUEST_STORAGE_KEY = 'writemind_guest_user';
+const PREFERRED_NAME_KEY = 'nexora_user_preferred_name';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
@@ -52,10 +54,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (fUser) {
         setIsGuest(false);
         localStorage.removeItem(GUEST_STORAGE_KEY);
+        const preferredName = localStorage.getItem(PREFERRED_NAME_KEY);
         const mappedUser: AuthUser = {
           uid: fUser.uid,
           email: fUser.email,
-          displayName: fUser.displayName || fUser.email?.split('@')[0] || 'User',
+          displayName: preferredName || fUser.displayName || fUser.email?.split('@')[0] || 'User',
           photoURL: fUser.photoURL
         };
         setUser(mappedUser);
@@ -86,6 +89,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => unsubscribe();
   }, []);
+
+  const updateUserName = async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    localStorage.setItem(PREFERRED_NAME_KEY, trimmed);
+    localStorage.setItem('nexora_asked_user_name', 'true');
+    setUser(prev => (prev ? { ...prev, displayName: trimmed } : null));
+
+    if (isGuest) {
+      const storedGuest = localStorage.getItem(GUEST_STORAGE_KEY);
+      if (storedGuest) {
+        try {
+          const guestData = JSON.parse(storedGuest);
+          guestData.displayName = trimmed;
+          localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(guestData));
+        } catch {}
+      }
+    } else if (firebaseUser) {
+      try {
+        await authService.updateUserName(trimmed);
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        await setDoc(userDocRef, { displayName: trimmed }, { merge: true });
+      } catch (err) {
+        console.warn('Could not update user name in Firebase:', err);
+      }
+    }
+  };
 
   const loginWithEmail = async (email: string, pass: string) => {
     setLoading(true);
@@ -192,7 +222,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginWithGoogleRedirect,
         loginAsGuest,
         logout,
-        resetPassword
+        resetPassword,
+        updateUserName
       }}
     >
       {children}

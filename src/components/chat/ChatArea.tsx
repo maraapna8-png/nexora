@@ -10,9 +10,11 @@ import {
   Wand2,
   Languages,
   ChevronDown,
-  Scale
+  Scale,
+  Edit2
 } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
+import { useAuth } from '../../context/AuthContext';
 import { MessageItem } from './MessageItem';
 import { Composer } from './Composer';
 import { FloatingVoicePlayer } from './FloatingVoicePlayer';
@@ -91,6 +93,7 @@ const EXAMPLE_PROMPTS: PromptCard[] = [
 
 export const ChatArea: React.FC<ChatAreaProps> = ({ onOpenLegalCitation }) => {
   const { messages, sendMessage, isGenerating } = useChat();
+  const { user } = useAuth();
   const scrollEndRef = useRef<HTMLDivElement>(null);
 
   // Smooth auto-scroll when new messages or chunks arrive
@@ -104,14 +107,23 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ onOpenLegalCitation }) => {
 
   const isEmptyState = messages.length === 0;
 
+  // Resolve personalized user name
+  const rawName =
+    localStorage.getItem('nexora_user_preferred_name') ||
+    user?.displayName;
+  const userName =
+    rawName && rawName !== 'Guest Writer' && rawName !== 'User'
+      ? rawName
+      : 'friend';
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden relative">
       {/* Scrollable Messages Area */}
       <div className="flex-1 overflow-y-auto pb-4">
         {isEmptyState ? (
-          <div className="max-w-4xl mx-auto px-4 py-8 sm:py-16 flex flex-col items-center text-center">
-            {/* Logo & Greeting */}
-            <div className="w-16 h-16 rounded-2xl overflow-hidden bg-[#090e1a] ring-1 ring-indigo-500/40 shadow-2xl shadow-indigo-600/40 mb-5 flex items-center justify-center">
+          <div className="max-w-4xl mx-auto px-4 py-8 sm:py-14 flex flex-col items-center text-center">
+            {/* Logo */}
+            <div className="w-14 h-14 rounded-2xl overflow-hidden bg-[#090e1a] ring-1 ring-indigo-500/40 shadow-2xl shadow-indigo-600/40 mb-6 flex items-center justify-center">
               <img 
                 src="/logo.png" 
                 alt="Nexora Logo" 
@@ -119,12 +131,31 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ onOpenLegalCitation }) => {
               />
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-              How can I help you today?
-            </h1>
-            <p className="mt-2 text-sm text-slate-400 max-w-md">
-              Nexora writes articles, analyzes PDF documents, understands images, and generates study notes with advanced AI.
-            </p>
+            {/* Personalized Welcome Card matching exact prompt & screenshot */}
+            <div className="w-full max-w-2xl text-left rounded-3xl p-6 sm:p-8 bg-gradient-to-b from-[#111728]/95 via-[#0d1220]/85 to-[#0a0e19]/90 border border-slate-800/90 shadow-2xl shadow-black/60 relative group">
+              <div className="flex items-start justify-between gap-3">
+                <h1 className="text-2xl sm:text-3xl font-serif font-bold text-white tracking-tight leading-snug">
+                  Welcome, {userName}! I’m Nexora.
+                </h1>
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-name-prompt-modal'))}
+                  className="px-2.5 py-1 rounded-lg text-slate-400 hover:text-indigo-300 hover:bg-slate-800/80 transition-colors text-xs flex items-center gap-1.5 shrink-0 border border-slate-800 hover:border-indigo-500/40"
+                  title="Change your name"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-sans">Edit name</span>
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-4 font-serif text-slate-200/95 text-base sm:text-lg leading-relaxed">
+                <p>
+                  Bring me anything—a tough problem, a half-formed idea, something you need to write. We’ll figure it out together.
+                </p>
+                <p className="font-semibold text-white">
+                  Where do you want to start?
+                </p>
+              </div>
+            </div>
 
             {/* Example Prompt Grid */}
             <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl text-left">

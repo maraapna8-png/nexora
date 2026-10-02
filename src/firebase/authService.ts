@@ -73,6 +73,13 @@ export const authService = {
     await sendPasswordResetEmail(auth, email);
   },
 
+  // Update user display name
+  async updateUserName(name: string): Promise<void> {
+    if (auth.currentUser) {
+      await updateProfile(auth.currentUser, { displayName: name });
+    }
+  },
+
   // Logout
   async logout(): Promise<void> {
     await signOut(auth);

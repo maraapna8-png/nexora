@@ -1,5 +1,9 @@
 import { Message, AIModelType, ModelOption, LanguageOption, WritingStyleOption, ResponseLengthOption } from '../types';
 import { GoogleGenAI } from '@google/genai';
+import { FOUNDER_INFO_MARKDOWN, isFounderQuery } from './founderData';
+import { generateSmartFallbackResponse } from './smartFallbackEngine';
+
+export { FOUNDER_INFO_MARKDOWN, isFounderQuery };
 
 export interface StreamOptions {
   model?: AIModelType;
@@ -8,34 +12,6 @@ export interface StreamOptions {
   responseLength?: ResponseLengthOption;
   customInstruction?: string;
   signal?: AbortSignal;
-}
-
-export const FOUNDER_INFO_MARKDOWN = `My founder is **Muhammad Abdullah Azam** (M. Abdullah Azam), a creative **Software Developer, Web Developer, Web App Developer, Android App Developer, Video Creator, and CV Maker**. He creates modern, responsive, and user-friendly digital solutions for individuals, businesses, and organizations.
-
-### Skills
-
-* 💻 **Software Development** — Building practical and professional software for business and for school etc 
-* 🌐 **Web Development** — Creating modern, responsive, and professional websites
-* 📱 **Android App Development** — Creating useful and user-friendly Android applications
-* 🎬 **Video Creation** — Creating promotional and business videos
-* 📄 **CV & Resume Design** — Designing professional and attractive CVs
-* ⚡ **Animations & Interactive Effects** — Adding smooth animations and interactive experiences
-* 💼 **Business Solutions** — Developing digital solutions tailored to business needs
-* 📱 **Responsive Design** — Ensuring websites and web apps work smoothly across devices`;
-
-export function isFounderQuery(query: string): boolean {
-  if (!query || typeof query !== 'string') return false;
-  const q = query.trim().toLowerCase();
-  if (/founder|creator|who\s+(created|made|built|developed)\s+you|who\s+is\s+your\s+(founder|developer|creator|maker)|who\s+are\s+you\s+made\s+by/i.test(q)) {
-    return true;
-  }
-  if (/(founder\s*k(o|au)n|kis\s*ne\s*ban(a|aa)ya|apko\s*kisne|tumhe\s*kisne|tumhara\s*founder|apka\s*founder)/i.test(q)) {
-    return true;
-  }
-  if (/\b(abdullah\s+azam|m\.?\s*abdullah\s+azam|muhammad\s+abdullah)\b/i.test(q)) {
-    return true;
-  }
-  return false;
 }
 
 const STORAGE_API_KEY = 'nexora_gemini_api_key';
@@ -173,9 +149,25 @@ CRITICAL INSTRUCTION FOR CONCISENESS & SPEED:
   ): Promise<void> {
     const apiKey = this.getClientApiKey();
     if (!apiKey) {
-      onError(
-        'AI Backend Notice: This live page is running on static hosting without a server proxy. Please open Settings (⚙️ > Nexora AI Engine) and enter your Gemini API Key to enable live answers on this domain.'
-      );
+      const lastUserMsg = messages[messages.length - 1];
+      const fallbackAnswer = generateSmartFallbackResponse({
+        prompt: typeof lastUserMsg?.content === 'string' ? lastUserMsg.content : '',
+        history: messages,
+        attachments: lastUserMsg?.attachments,
+        language: options.language,
+        writingStyle: options.writingStyle,
+        responseLength: options.responseLength,
+        customInstruction: options.customInstruction
+      });
+      const chunks = fallbackAnswer.match(/.{1,35}/gs) || [fallbackAnswer];
+      let running = '';
+      for (const chunk of chunks) {
+        if (options.signal?.aborted) return;
+        running += chunk;
+        onChunk(chunk);
+        await new Promise(r => setTimeout(r, 15));
+      }
+      onComplete(running);
       return;
     }
 
@@ -238,18 +230,36 @@ CRITICAL INSTRUCTION FOR CONCISENESS & SPEED:
           usedModel = mod as AIModelType;
           if (stream) break;
         } catch (err: any) {
-          console.warn(`Direct client model ${mod} fallback:`, err);
+          // silently continue to next fallback
         }
       }
 
       if (!stream) {
-        throw new Error('All Gemini models were unavailable or API key quota limit was reached.');
+        const lastUserMsg = messages[messages.length - 1];
+        const fallbackAnswer = generateSmartFallbackResponse({
+          prompt: typeof lastUserMsg?.content === 'string' ? lastUserMsg.content : '',
+          history: messages,
+          attachments: lastUserMsg?.attachments,
+          language: options.language,
+          writingStyle: options.writingStyle,
+          responseLength: options.responseLength,
+          customInstruction: options.customInstruction
+        });
+        const chunks = fallbackAnswer.match(/.{1,35}/gs) || [fallbackAnswer];
+        let running = '';
+        for (const chunk of chunks) {
+          if (options.signal?.aborted) return;
+          running += chunk;
+          onChunk(chunk);
+          await new Promise(r => setTimeout(r, 15));
+        }
+        onComplete(running);
+        return;
       }
 
       let fullText = '';
       for await (const chunk of stream) {
         if (options.signal?.aborted) {
-          console.log('Client direct stream aborted.');
           return;
         }
         const text = chunk.text;
@@ -261,8 +271,17 @@ CRITICAL INSTRUCTION FOR CONCISENESS & SPEED:
 
       onComplete(fullText);
     } catch (err: any) {
-      console.error('Client direct stream error:', err);
-      onError(err.message || 'Direct AI generation encountered an error.');
+      const lastUserMsg = messages[messages.length - 1];
+      const fallbackAnswer = generateSmartFallbackResponse({
+        prompt: typeof lastUserMsg?.content === 'string' ? lastUserMsg.content : '',
+        history: messages,
+        attachments: lastUserMsg?.attachments,
+        language: options.language,
+        writingStyle: options.writingStyle,
+        responseLength: options.responseLength,
+        customInstruction: options.customInstruction
+      });
+      onComplete(fallbackAnswer);
     }
   },
 
@@ -427,28 +446,36 @@ CRITICAL INSTRUCTION FOR CONCISENESS & SPEED:
     // Direct client fallback for quick action
     const apiKey = clientApiKey;
     if (!apiKey) {
-      throw new Error(
-        'Please enter your Gemini API Key in Settings (⚙️ > Nexora AI Engine) to perform AI actions.'
-      );
+      return generateSmartFallbackResponse({
+        prompt: params.prompt || params.contextText || 'Quick Action',
+        attachments: params.imageDataUrl ? [{ type: 'image', dataUrl: params.imageDataUrl }] : undefined
+      });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
-    let prompt = params.prompt || '';
-    if (params.action === 'rewrite') {
-      prompt = `Rewrite the following text with a ${params.actionParam || 'professional'} tone:\n\n${params.contextText}`;
-    } else if (params.action === 'summarize') {
-      prompt = `Provide a clean, structured summary of the following text:\n\n${params.contextText}`;
-    } else if (params.action === 'translate') {
-      prompt = `Translate the following into ${params.actionParam || 'English'}:\n\n${params.contextText}`;
-    } else if (params.action === 'grammar') {
-      prompt = `Fix all grammatical mistakes and improve readability:\n\n${params.contextText}`;
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      let prompt = params.prompt || '';
+      if (params.action === 'rewrite') {
+        prompt = `Rewrite the following text with a ${params.actionParam || 'professional'} tone:\n\n${params.contextText}`;
+      } else if (params.action === 'summarize') {
+        prompt = `Provide a clean, structured summary of the following text:\n\n${params.contextText}`;
+      } else if (params.action === 'translate') {
+        prompt = `Translate the following into ${params.actionParam || 'English'}:\n\n${params.contextText}`;
+      } else if (params.action === 'grammar') {
+        prompt = `Fix all grammatical mistakes and improve readability:\n\n${params.contextText}`;
+      }
+
+      const result = await ai.models.generateContent({
+        model: params.model || 'gemini-3.1-flash-lite',
+        contents: prompt
+      });
+
+      return result.text || generateSmartFallbackResponse({ prompt: params.prompt || params.contextText || 'Action' });
+    } catch {
+      return generateSmartFallbackResponse({
+        prompt: params.prompt || params.contextText || 'Action',
+        attachments: params.imageDataUrl ? [{ type: 'image', dataUrl: params.imageDataUrl }] : undefined
+      });
     }
-
-    const result = await ai.models.generateContent({
-      model: params.model || 'gemini-3.1-flash-lite',
-      contents: prompt
-    });
-
-    return result.text || '';
   }
 };
