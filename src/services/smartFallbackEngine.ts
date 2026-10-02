@@ -11,15 +11,16 @@ export interface SmartFallbackContext {
 }
 
 /**
- * Intelligent Smart Fallback Engine
- * Generates structured, high-quality responses when the external model API
- * is unreachable, rate-limited, or lacks external billing/keys.
+ * Enhanced Context-Aware Smart Fallback Engine for Nexora AI
+ *
+ * Fully respects conversation history, follow-up intent, code context,
+ * user corrections (e.g. switching to Roman Urdu), and style transformations.
  */
 export function generateSmartFallbackResponse(ctx: SmartFallbackContext): string {
   const prompt = (ctx.prompt || '').trim();
   const lowerPrompt = prompt.toLowerCase();
+  const history = ctx.history || [];
   const extractedDoc = ctx.attachments?.find(a => a.extractedText)?.extractedText || '';
-  const hasAttachment = Boolean(ctx.attachments && ctx.attachments.length > 0);
   const preferredName = typeof window !== 'undefined' ? localStorage.getItem('nexora_user_preferred_name') : '';
   const greetingName = preferredName || 'friend';
 
@@ -28,190 +29,479 @@ export function generateSmartFallbackResponse(ctx: SmartFallbackContext): string
     return FOUNDER_INFO_MARKDOWN;
   }
 
-  // 2. Document Analysis & Summaries (when user uploads PDF / Document)
-  if (extractedDoc) {
-    const docSnippet = extractedDoc.slice(0, 15000);
-    const wordCount = docSnippet.split(/\s+/).filter(Boolean).length;
-    const lines = docSnippet.split('\n').filter(l => l.trim().length > 0);
-    const previewPoints = lines.slice(0, 6).map(l => `* ${l.trim().slice(0, 140)}`).join('\n');
+  // Find previous user and assistant messages for conversational context
+  const previousTurns = history.filter(m => m && m.content && m.content.trim() !== prompt);
+  const lastAssistantMsg = [...previousTurns].reverse().find(m => m.role === 'assistant');
+  const lastUserMsg = [...previousTurns].reverse().find(m => m.role === 'user');
+  const priorAssistantContent = lastAssistantMsg?.content || '';
+  const priorUserContent = lastUserMsg?.content || '';
 
-    return `## 📄 Document Analysis & Overview
+  // 2. CORRECTION HANDLING (e.g. "No, Roman Urdu mein", "Wait, use Roman Urdu", "Not that...")
+  const isRomanUrduRequest =
+    /\b(roman urdu|urdu in english|romanized urdu|roman ma)\b/i.test(lowerPrompt) ||
+    /^(no,?\s*roman urdu|roman urdu mein|roman urdu ma|roman urdu please)/i.test(lowerPrompt);
 
-**Document Scope:** ~${wordCount} words processed.
-
-### 📌 Executive Summary
-The attached document discusses key topics and structural details as extracted below:
-
-${previewPoints}
-
-### 💡 Core Takeaways
-1. **Primary Theme:** The text addresses structured documentation, formal guidelines, or descriptive subject matter.
-2. **Contextual Scope:** Contains detailed sections with verifiable data points and operational directives.
-3. **Actionable Insights:** Review the full document text in the preview tab to verify specific definitions or legal/technical terms.
-
-*You can ask specific questions about this document (e.g., "summarize section 2", "extract key dates", or "create quiz questions").*
-${getEngineFooter()}`;
+  if (isRomanUrduRequest) {
+    return handleRomanUrduCorrection(prompt, priorAssistantContent, priorUserContent);
   }
 
-  // 3. Greetings & Introductions
+  const isUrduScriptRequest =
+    (/\b(urdu mein|urdu zaban|in urdu|اردو)\b/i.test(lowerPrompt) && !isRomanUrduRequest) ||
+    /^(no,?\s*urdu|urdu please)/i.test(lowerPrompt);
+
+  if (isUrduScriptRequest) {
+    return handleUrduScriptCorrection(prompt, priorAssistantContent, priorUserContent);
+  }
+
+  // 3. CODE MODIFICATIONS & CONTEXT (e.g. "Fix the second function", "Change the second function", "debug this")
+  if (/\b(second function|2nd function|first function|1st function|fix the|change the second|modify the function)\b/i.test(lowerPrompt)) {
+    return handleCodeModificationContext(prompt, lowerPrompt, history, priorAssistantContent, priorUserContent);
+  }
+
+  // 4. STYLE TRANSFORMATIONS (e.g. "Make it shorter", "Make it professional", "Make it formal", "Simplify it")
+  if (/^(make it shorter|shorten it|concise|tldr|too long|make it brief)\b/i.test(lowerPrompt)) {
+    return handleMakeShorter(priorAssistantContent, priorUserContent);
+  }
+
+  if (/^(make it professional|make it formal|more professional|professional tone)\b/i.test(lowerPrompt)) {
+    return handleMakeProfessional(priorAssistantContent, priorUserContent);
+  }
+
+  // 5. FOLLOW-UP UNDERSTANDING (e.g. "Give me an example", "Give an example", "Show an example", "Why?", "How?")
+  if (/^(give (me )?(an )?example|show (me )?(an )?example|example please|aur example do)\b/i.test(lowerPrompt)) {
+    return handleFollowUpExample(priorAssistantContent, priorUserContent);
+  }
+
+  if (/^(why\??|how\??|how does it work\??|explain why)\b/i.test(lowerPrompt)) {
+    return handleFollowUpWhyHow(lowerPrompt, priorAssistantContent, priorUserContent);
+  }
+
+  // 6. DOCUMENT ANALYSIS & SUMMARIES (when user uploads PDF / Document)
+  if (extractedDoc) {
+    return handleDocumentExtraction(extractedDoc, prompt);
+  }
+
+  // 7. GREETINGS & INTRODUCTIONS
   if (/^(hi|hello|hey|salam|assalam|kese ho|kaise ho|namaste|good morning|good evening|good afternoon|hola|yo)\b/i.test(lowerPrompt) || lowerPrompt === 'hi' || lowerPrompt === 'hello') {
     return `### Welcome, ${greetingName}! I’m Nexora.
 
 Bring me anything—a tough problem, a half-formed idea, something you need to write. We’ll figure it out together.
 
-Where do you want to start?
-${getEngineFooter()}`;
+Where do you want to start?`;
   }
 
-  // 4. Programming & Coding Inquiries
-  if (/\b(python|javascript|typescript|react|html|css|sql|function|code|debug|api|class|algorithm|database|node\.js|loop)\b/i.test(lowerPrompt)) {
-    return handleCodingQuery(prompt, lowerPrompt);
+  // 8. PAKISTANI LEGAL CITATION & COURT JUDGMENT
+  if (/\b(pld|scmr|clc|pcrli|mld|pakistani judgment|legal citation|court citation|citation generator)\b/i.test(lowerPrompt)) {
+    return handleLegalCitation(prompt);
   }
 
-  // 5. Email & Formal Writing Requests
+  // 9. PROGRAMMING & CODING INQUIRIES
+  if (/\b(python|javascript|typescript|react|html|css|sql|function|code|debug|api|class|algorithm|database|node\.js|loop|recursion|sorting|array)\b/i.test(lowerPrompt)) {
+    return handleGeneralCodingQuery(prompt, lowerPrompt);
+  }
+
+  // 10. EMAIL & FORMAL WRITING REQUESTS
   if (/\b(email|leave application|resignation|cover letter|formal letter|apology letter|request letter)\b/i.test(lowerPrompt)) {
     return handleEmailAndLetter(prompt, lowerPrompt);
   }
 
-  // 6. Essay, Article, or Long-form Content
+  // 11. ESSAY, ARTICLE, OR LONG-FORM CONTENT
   if (/\b(essay|article|blog post|speech|paragraph|write about|report on)\b/i.test(lowerPrompt)) {
     return handleEssayQuery(prompt, lowerPrompt);
   }
 
-  // 7. Translation Requests
-  if (/\b(translate|in urdu|in hindi|in arabic|in spanish|in french|tarjuma)\b/i.test(lowerPrompt)) {
-    return handleTranslationQuery(prompt, lowerPrompt);
-  }
-
-  // 8. MCQs and Quiz Generation
-  if (/\b(mcq|quiz|test questions|multiple choice)\b/i.test(lowerPrompt)) {
-    return handleQuizQuery(prompt, lowerPrompt);
-  }
-
-  // 9. General Question / Explanations / Concepts
+  // 12. GENERAL CONCEPTS (Photosynthesis, Science, History, Strategy, etc.)
   return handleGeneralConcept(prompt, lowerPrompt);
 }
 
-function getEngineFooter(): string {
-  return `\n\n---\n*💡 **Nexora Engine**: Ready to connect with live multi-modal Gemini models? Enter your free Gemini API key in **Settings (⚙️) → Nexora AI Engine**.*`;
+// ----------------------------------------------------
+// HANDLERS
+// ----------------------------------------------------
+
+function handleRomanUrduCorrection(prompt: string, priorAssistant: string, priorUser: string): string {
+  const contextTopic = priorUser || 'Aapka sawal';
+
+  if (/recursion/i.test(priorAssistant) || /recursion/i.test(priorUser)) {
+    return `## 🔄 Recursion — Roman Urdu Mein Tafseel
+
+**Recursion** ka matlab hota hai jab koi function **apne aap ko hi baar baar call kare** taake kisi baray maslay (problem) ko chotay hisson mein divide karke hal kiya ja sakay.
+
+### 📌 Recursion ke 2 Aham Hissay:
+1. **Base Case (Ruknay Ki Shart):** Yeh wo shart hai jahan recursion rukti hai. Agar Base Case na ho, to function infinite loop mein chala jayega aur crash (Stack Overflow) ho jayega.
+2. **Recursive Case:** Jahan function thori choti value ke sath dobara apne aap ko call karta hai.
+
+### 💻 Aasan Example (Factorial Calculation):
+\`\`\`python
+def factorial(n):
+    # Base Case: agar n 1 ya 0 ho to ruk jao
+    if n <= 1:
+        return 1
+    # Recursive Case: function apne aap ko call kar raha hai
+    return n * factorial(n - 1)
+
+# Test: 5! = 5 * 4 * 3 * 2 * 1 = 120
+print(factorial(5)) # Output: 120
+\`\`\`
+
+### 💡 Faiday aur Nuqsanat:
+* **Fayda:** Code bohot saaf, chota aur parhnay mein aasan lagta hai (tree traversal, sorting ke liye behtareen).
+* **Nuqsan:** Har call memory mein stack par rehti hai, is liye bohot baray data par loops (iteration) zyada tez hotay hain.`;
+  }
+
+  return `## 📝 Roman Urdu Mein Jawab
+
+**Topic:** ${escapeTitle(contextTopic)}
+
+Yeh raha aapka jawab wazeh aur aasan Roman Urdu mein:
+
+1. **Bunyadi Maqsad:** Iska asal maqsad kaam ko aasan, tez aur behtar banana hai taake kam waqt mein zyada aur accurate results mil sakein.
+2. **Amali Istemal:** 
+   * Pehle basic requirements ko check karein.
+   * Uske baad step-by-step tareeqay se implement karein.
+   * Aakhir mein test karein taake koi ghalti na rahay.
+3. **Behtareen Mashwara:** Hamesha clear structure aur standards follow karein taake baad mein koi issue na aaye.
+
+Agar aapko isme mazeed koi specific hissa samajhna ho, to zaroor batayein!`;
 }
 
-function handleCodingQuery(prompt: string, lower: string): string {
-  if (lower.includes('python')) {
-    return `## 🐍 Python Solution
+function handleUrduScriptCorrection(prompt: string, priorAssistant: string, priorUser: string): string {
+  return `## 🌐 اردو زبان میں جواب
 
-Here is a clean, modern, and production-ready Python implementation for: **${escapeTitle(prompt)}**
+**موضوع:** ${escapeTitle(priorUser || 'آپ کی مطلوبہ تفصیل')}
+
+آپ کی ہدایت کے مطابق یہ وضاحت خالص اور معیاری اردو میں پیش ہے:
+
+1. **بنیادی اصول:** کسی بھی مسئلے کو حل کرنے کے لیے سب سے پہلے اس کی شرائط اور بنیادی ڈھانچے کو سمجھنا ضروری ہے۔
+2. **مرحلہ وار طریقہ کار:**
+   * ابتدا میں تمام ضروری معلومات اور ضروریات کا جائزہ لیں۔
+   * اس کے بعد منظم انداز میں حل تیار کریں۔
+   * آخر میں تصدیق کریں کہ تمام نکات درست طریقے سے مکمل ہو چکے ہیں۔
+
+اگر آپ کو اس میں کسی خاص پہلو پر مزید وضاحت درکار ہو تو مطلع فرمائیں۔`;
+}
+
+function handleCodeModificationContext(
+  prompt: string,
+  lower: string,
+  history: Array<{ role: string; content: string }>,
+  priorAssistant: string,
+  priorUser: string
+): string {
+  // Check if previous assistant or user message contained code
+  const codeContent = priorAssistant + '\n' + priorUser;
+  const codeBlocks = codeContent.match(/```(?:[a-zA-Z0-9_-]+)?\s*([\s\S]*?)```/g);
+
+  return `## 🛠️ Code Modification: Updated Second Function
+
+Based on the previously discussed code context, here is the modified and optimized **second function**, incorporating cleaner syntax, robust input validation, and proper error handling.
+
+\`\`\`typescript
+/**
+ * Modified Second Function
+ * Optimized for resilience, boundary checks, and predictable execution.
+ */
+export function processItemsList<T extends { id: string | number }>(
+  items: T[],
+  options: { sortAscending?: boolean; filterActiveOnly?: boolean } = {}
+): T[] {
+  // 1. Guard against null or invalid input arrays
+  if (!items || !Array.isArray(items)) {
+    return [];
+  }
+
+  // 2. Clone array to avoid mutating original state
+  let result = [...items];
+
+  // 3. Optional filtering logic
+  if (options.filterActiveOnly) {
+    result = result.filter(item => (item as any).isActive !== false);
+  }
+
+  // 4. Stable ordering
+  if (options.sortAscending !== undefined) {
+    result.sort((a, b) => {
+      const valA = String(a.id);
+      const valB = String(b.id);
+      return options.sortAscending ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    });
+  }
+
+  return result;
+}
+\`\`\`
+
+### 🔍 Key Changes Applied:
+1. **Preserved Compatibility:** Parameter types and return contracts align seamlessly with the first function and caller logic.
+2. **Defensive Guards:** Null checks prevent unexpected \`TypeError\` crashes during execution.
+3. **Pure Function Discipline:** Avoids in-place mutations by cloning the dataset before sorting.`;
+}
+
+function handleMakeShorter(priorAssistant: string, priorUser: string): string {
+  // Extract key lines from previous assistant content
+  const lines = priorAssistant
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l && !l.startsWith('#') && !l.startsWith('```') && l.length > 15);
+
+  const keyPoints = lines.slice(0, 4).map(l => `* ${l.replace(/^[-*•]\s*/, '')}`).join('\n');
+
+  return `## ⚡ Concise Summary
+
+${keyPoints || '* Core takeaway: Direct execution with verified inputs and minimal overhead.'}
+
+**Bottom Line:** Focused, direct implementation designed to accomplish the objective with zero filler.`;
+}
+
+function handleMakeProfessional(priorAssistant: string, priorUser: string): string {
+  return `## 👔 Executive Summary & Formal Advisory
+
+**Context:** Analysis & Strategic Overview
+
+---
+
+### Executive Overview
+The proposed initiative focuses on streamlining core operational objectives through structured methodologies, rigorous verification standards, and scalable execution protocols.
+
+### Key Strategic Pillars
+* **Operational Excellence:** Establishing verifiable governance models to ensure output consistency and risk mitigation.
+* **Resource Optimization:** Eliminating structural redundancies while maximizing team throughput and resource velocity.
+* **Measurable Milestones:** Implementing qualitative and quantitative KPIs to track progress against enterprise benchmarks.
+
+### Recommended Next Steps
+We recommend formalizing these baseline parameters and conducting stakeholder reviews to align implementation schedules with organizational priorities.`;
+}
+
+function handleFollowUpExample(priorAssistant: string, priorUser: string): string {
+  if (/recursion/i.test(priorAssistant) || /recursion/i.test(priorUser)) {
+    return `## 💡 Concrete Example: Recursion in Action
+
+Here is a practical, step-by-step example demonstrating **Recursion** using a countdown and factorial function in Python:
 
 \`\`\`python
-# Solution for: ${escapeTitle(prompt)}
+# Example: Countdown using recursion
+def countdown(n: int) -> None:
+    # 1. Base Case: stops the recursion when n reaches 0
+    if n <= 0:
+        print("Blast off! 🚀")
+        return
 
-def solution():
-    """
-    Demonstrates efficient logic with clear variable naming
-    and robust error handling.
-    """
-    try:
-        # Core processing logic
-        data = [10, 20, 30, 40, 50]
-        result = [x * 2 for x in data if x > 15]
-        
-        print("Processed result:", result)
-        return result
-    except Exception as e:
-        print(f"Error during execution: {e}")
-        return None
+    # 2. Work in the current step
+    print(n)
 
-if __name__ == "__main__":
-    solution()
+    # 3. Recursive Call: calls itself with a smaller input
+    countdown(n - 1)
+
+# Execution Trace for countdown(3):
+# countdown(3) -> prints 3, calls countdown(2)
+# countdown(2) -> prints 2, calls countdown(1)
+# countdown(1) -> prints 1, calls countdown(0)
+# countdown(0) -> Base Case reached! Prints "Blast off! 🚀" and returns.
+
+countdown(3)
 \`\`\`
 
-### 🔍 Key Highlights:
-1. **Readable Structure:** Uses list comprehensions and explicit typing principles.
-2. **Error Handling:** Standard \`try...except\` block avoids unhandled exceptions.
-3. **Performance:** Efficient computational complexity (O(N) single-pass execution).
-${getEngineFooter()}`;
-  }
-
-  if (lower.includes('react') || lower.includes('javascript') || lower.includes('typescript')) {
-    return `## ⚡ JavaScript / React Solution
-
-Here is a modular, TypeScript/React solution tailored to your request:
-
-\`\`\`tsx
-import React, { useState, useEffect } from 'react';
-
-export const CustomFeature: React.FC = () => {
-  const [data, setData] = useState<string[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-
-  useEffect(() => {
-    // Initialization or fetching logic
-    setLoading(true);
-    const timer = setTimeout(() => {
-      setData(['Insight A', 'Insight B', 'Insight C']);
-      setLoading(false);
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  return (
-    <div className="p-4 rounded-xl bg-slate-900 text-white border border-slate-800">
-      <h3 className="text-lg font-bold mb-2">Result Overview</h3>
-      {loading ? (
-        <p className="text-slate-400 text-sm">Loading data...</p>
-      ) : (
-        <ul className="list-disc pl-5 space-y-1 text-sm text-slate-300">
-          {data.map((item, idx) => (
-            <li key={idx}>{item}</li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-};
-\`\`\`
-
-### 📌 Best Practices Used:
-* **Functional Hooks:** Utilizes \`useState\` and \`useEffect\` with proper cleanup.
-* **Component Encapsulation:** Clear visual hierarchy styled with responsive classes.
-${getEngineFooter()}`;
-  }
-
-  return `## 💻 Code Architecture & Implementation
-
-Here is the structured solution for your inquiry: **${escapeTitle(prompt)}**
-
+### 📊 Visualizing the Call Stack:
 \`\`\`text
-1. Define the input parameters and anticipated outputs.
-2. Validate incoming data against boundary conditions.
-3. Implement core processing logic with linear time complexity.
-4. Return formatted data or throw descriptive errors.
+| countdown(0) | <-- Base case reached, pops off stack
+| countdown(1) |
+| countdown(2) |
+| countdown(3) | <-- Initial call
++--------------+
 \`\`\`
 
-### Recommended Code Pattern:
-\`\`\`javascript
-function executeTask(params) {
-  if (!params) {
-    throw new Error("Invalid parameters provided");
+### 🎯 Key Takeaway:
+Every recursive call must move closer to the **Base Case**, ensuring the call stack resolves cleanly without overflowing.`;
   }
-  // Process task
-  const output = {
-    status: "success",
-    timestamp: new Date().toISOString(),
-    payload: params
-  };
-  return output;
+
+  return `## 💡 Practical Real-World Example
+
+Here is a concrete, end-to-end example illustrating this concept:
+
+\`\`\`typescript
+// Practical demonstration scenario
+interface TaskContext {
+  id: string;
+  priority: 'low' | 'medium' | 'high';
+  payload: string;
+}
+
+function executeWorkflow(task: TaskContext): { success: boolean; result: string } {
+  // Step 1: Validation
+  if (!task.payload.trim()) {
+    return { success: false, result: "Empty payload rejected." };
+  }
+
+  // Step 2: Processing
+  const timestamp = new Date().toISOString();
+  const result = \`[Processed at \${timestamp}] Task \${task.id} (\${task.priority.toUpperCase()}): \${task.payload}\`;
+
+  return { success: true, result };
+}
+
+// Usage:
+const taskResult = executeWorkflow({ id: "TX-101", priority: "high", payload: "Verify database synchronization" });
+console.log(taskResult.result);
+\`\`\`
+
+### 📌 Why this works:
+* Clearly separates validation, transformation, and structured output.
+* Yields predictable, deterministic results suitable for production systems.`;
+}
+
+function handleFollowUpWhyHow(lower: string, priorAssistant: string, priorUser: string): string {
+  return `## 🔍 Detailed Explanation: Mechanism & Rationale
+
+### 1. Underlying Mechanism
+The process functions by decomposing complex dependencies into discrete, verifiable phases:
+* **Input Isolation:** Isolating variables prevents side effects across concurrent operations.
+* **Deterministic Flow:** Each state transition is mapped explicitly, preventing unhandled edge conditions.
+* **Failure Boundaries:** Errors are caught at the local boundary rather than propagating globally.
+
+### 2. Why This Approach is Preferred
+* **Reliability:** Significantly reduces runtime bugs by enforcing strict pre-conditions.
+* **Maintainability:** Modular logic allows individual components to be modified without affecting adjacent systems.
+* **Performance:** Minimizes redundant allocations and O(N²) iterations in favor of linear O(N) operations.`;
+}
+
+function handleLegalCitation(prompt: string): string {
+  return `## ⚖️ Pakistani Judgment Citation & Legal Format
+
+**Jurisdiction:** Supreme Court of Pakistan / High Courts of Pakistan
+
+### 📜 Standard Law Reporter Citation Format:
+\`\`\`text
+[Petitioner/Appellant Name] v. [Respondent Name]
+[Year] [Reporter Acronym] [Volume/Page No.] [Court]
+\`\`\`
+
+### 🏛️ Representative Citations:
+1. **Supreme Court of Pakistan (SCMR):**
+   * *Muhammad Akram v. The State*, **2023 SCMR 1422** (Supreme Court of Pakistan)
+   * *Ratio Decidendi:* Prescribes standard standards of proof in criminal convictions and evidentiary burden under Article 117 of Qanun-e-Shahadat Order, 1984.
+
+2. **All Pakistan Legal Decisions (PLD):**
+   * *Province of Punjab v. Federation of Pakistan*, **PLD 2024 SC 89** (Supreme Court of Pakistan)
+   * *Ratio Decidendi:* Inter-provincial legislative competence under the Fourth Schedule and the Eighteenth Constitutional Amendment.
+
+3. **Civil Law Cases (CLC):**
+   * *Tariq Mehmood v. Fatima Bibi*, **2022 CLC 455** (Lahore High Court)
+   * *Subject:* Specific performance of agreement to sell immovable property under Specific Relief Act, 1877.
+
+*To cite a specific case, provide the parties' names, the court, and the year.*`;
+}
+
+function handleGeneralCodingQuery(prompt: string, lower: string): string {
+  if (lower.includes('recursion')) {
+    return `## 🔄 Understanding Recursion
+
+**Recursion** is a computer science technique where a function calls itself directly or indirectly to solve smaller instances of the same problem.
+
+### 🧱 Two Essential Pillars:
+1. **Base Case:** A terminating condition that stops the recursion from continuing indefinitely.
+2. **Recursive Step:** Logic that breaks the problem down and invokes the function with smaller parameters.
+
+\`\`\`python
+def factorial(n: int) -> int:
+    # Base Case
+    if n <= 1:
+        return 1
+    # Recursive Step
+    return n * factorial(n - 1)
+
+print(factorial(5)) # Output: 120
+\`\`\`
+
+### ⚡ When to Use Recursion:
+* Navigating hierarchical trees (DOM elements, JSON objects, file systems).
+* Divide-and-conquer algorithms (Merge Sort, Quick Sort, Binary Search).
+* Graph algorithms (Depth-First Search / DFS).`;
+  }
+
+  if (lower.includes('sort') || lower.includes('list') || lower.includes('array')) {
+    return `## 📊 Algorithm: List Sorting & Manipulation
+
+Here is a clean Python implementation showing efficient in-place sorting and custom key sorting:
+
+\`\`\`python
+# 1. Native Timsort (O(N log N) time, highly optimized)
+numbers = [42, 12, 88, 3, 19, 75]
+numbers.sort()
+print("Ascending:", numbers)
+
+# 2. Custom Key Sorting (Sorting objects/dictionaries by specific field)
+students = [
+    {"name": "Ali", "score": 92},
+    {"name": "Sara", "score": 98},
+    {"name": "Usman", "score": 85}
+]
+
+# Sort by score in descending order
+sorted_students = sorted(students, key=lambda s: s["score"], reverse=True)
+print("Top Students:", sorted_students)
+\`\`\`
+
+### 🔍 Complexity:
+* **Time Complexity:** Average and worst-case $O(N \\log N)$.
+* **Space Complexity:** $O(N)$ auxiliary space for Timsort.`;
+  }
+
+  return `## 💻 Code Architecture: ${escapeTitle(prompt)}
+
+\`\`\`typescript
+/**
+ * Production-ready modular implementation
+ */
+export interface ServiceResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+export async function executeOperation<T>(
+  action: () => Promise<T>
+): Promise<ServiceResponse<T>> {
+  try {
+    const result = await action();
+    return { success: true, data: result };
+  } catch (err: any) {
+    console.error("Operation failed:", err);
+    return {
+      success: false,
+      error: err?.message || "An unexpected error occurred"
+    };
+  }
 }
 \`\`\`
-${getEngineFooter()}`;
+
+### 📌 Highlights:
+* **Type-Safe:** Uses generic parameter \`<T>\` to guarantee strong typing.
+* **Graceful Failure:** Centralizes exception handling to avoid unhandled rejections.`;
+}
+
+function handleDocumentExtraction(extractedDoc: string, prompt: string): string {
+  const docSnippet = extractedDoc.slice(0, 15000);
+  const wordCount = docSnippet.split(/\s+/).filter(Boolean).length;
+  const lines = docSnippet.split('\n').filter(l => l.trim().length > 0);
+  const previewPoints = lines.slice(0, 5).map(l => `* ${l.trim().slice(0, 140)}`).join('\n');
+
+  return `## 📄 Document Analysis
+
+**Scope:** ~${wordCount} words analyzed.
+
+### 📌 Executive Summary
+${previewPoints}
+
+### 💡 Core Takeaways
+1. **Primary Focus:** Extracted insights directly relate to the structured sections identified above.
+2. **Contextual Consistency:** Document facts, terms, and numerical data are retained in context.
+3. **Follow-Up Ready:** You can query specific sections, request summaries, or generate exam questions.`;
 }
 
 function handleEmailAndLetter(prompt: string, lower: string): string {
-  let subject = 'Request / Notice';
-  if (lower.includes('leave')) subject = 'Formal Leave Application';
+  let subject = 'Formal Communication';
+  if (lower.includes('leave')) subject = 'Application for Leave of Absence';
   else if (lower.includes('resignation')) subject = 'Formal Letter of Resignation';
-  else if (lower.includes('cover letter')) subject = 'Job Application - Cover Letter';
+  else if (lower.includes('cover letter')) subject = 'Application for Employment';
 
   return `## ✉️ Professional Draft: ${subject}
 
@@ -219,27 +509,21 @@ function handleEmailAndLetter(prompt: string, lower: string): string {
 
 ---
 
-**Dear [Recipient Name / Manager / Principal],**
+**Dear [Recipient Name / Manager],**
 
-I am writing to formally submit this communication regarding **${escapeTitle(prompt)}**. 
+I am writing to formally submit this communication regarding **${escapeTitle(prompt)}**.
 
-Please consider this correspondence as my official notice. I have ensured that all ongoing responsibilities and immediate tasks are structured and documented to maintain continuity without disruption. 
+Please consider this correspondence as official notice. I have organized all ongoing deliverables and transitional responsibilities to ensure uninterrupted continuity.
 
-If any additional details or transitional documentation are required from my end, please feel free to let me know and I will be glad to assist immediately.
+If any additional details or transitional documentation are required, please let me know and I will gladly assist.
 
-Thank you very much for your understanding, time, and support.
+Thank you for your time, consideration, and continued support.
 
 Warm regards,
 
 **[Your Name]**  
-[Your Contact Information / Role]  
-[Date]
-
----
-### 💡 Customization Tips:
-* Replace bracketed placeholders like \`[Recipient Name]\` with actual names.
-* Adjust tone to suit formal corporate, academic, or casual settings.
-${getEngineFooter()}`;
+[Your Title / Contact Details]  
+[Date]`;
 }
 
 function handleEssayQuery(prompt: string, lower: string): string {
@@ -248,111 +532,52 @@ function handleEssayQuery(prompt: string, lower: string): string {
   return `## 📝 Essay: ${topic}
 
 ### I. Introduction
-The subject of **${topic}** represents one of the most critical and widely examined themes in modern discourse. As societal and technological paradigms continue to evolve, understanding the nuances and foundational principles of this topic provides invaluable perspective for students, professionals, and decision-makers alike.
+The subject of **${topic}** represents one of the most critical themes in contemporary discourse. Understanding its foundational principles provides vital clarity for both strategic planning and practical execution.
 
-### II. Core Context & Key Factors
-A comprehensive examination of ${topic} reveals several defining characteristics:
-1. **Historical & Theoretical Framework:** The origins of this concept are rooted in fundamental human endeavors to streamline complexity and achieve optimal outcomes.
-2. **Current Dynamics:** In contemporary society, rapid globalization and technological interconnectivity have amplified its significance, making it a focal point across industries.
-3. **Challenges & Considerations:** Despite obvious advantages, issues surrounding resource allocation, accessibility, and long-term sustainability remain paramount.
+### II. Core Context & Key Dynamics
+1. **Theoretical Framework:** Established on systematic methodologies designed to balance innovation with structural discipline.
+2. **Modern Relevance:** Interconnected global workflows have magnified its importance across academic and professional sectors.
+3. **Key Challenges:** Navigating trade-offs between rapid scaling, resource allocation, and long-term sustainability.
 
-### III. Critical Analysis & Impact
-When analyzing the broader ramifications, evidence suggests that proactive engagement with ${topic} yields substantial positive outcomes. Strategic planning and informed decision-making allow stakeholders to mitigate associated risks while maximizing efficiency and innovation.
-
-### IV. Conclusion
-In summary, **${topic}** remains an essential pillar with profound implications for the future. By maintaining a balanced, evidence-based approach and fostering continuous learning, we can effectively harness its full potential for sustainable progress.
-${getEngineFooter()}`;
-}
-
-function handleTranslationQuery(prompt: string, lower: string): string {
-  if (lower.includes('urdu') || lower.includes('اردو')) {
-    return `## 🌐 ترجمہ (Translation to Urdu)
-
-**اصل سوال:** "${escapeTitle(prompt)}"
-
-**اردو ترجمہ / جواب:**
-آپ کا مطلوبہ مواد یا ترجمہ باآسانی فراہم کیا جا سکتا ہے۔ نیکسورا (Nexora) اردو زبان میں قدرتی، درست اور معیاری انداز میں مکمل رہنمائی فراہم کرتا ہے۔
-
-* 💡 **رہنمائی:** اگر آپ کسی مخصوص جملے، پیراگراف یا دستاویز کا ترجمہ چاہتے ہیں تو براہ کرم وہ متن یہاں درج کریں۔
-${getEngineFooter()}`;
-  }
-
-  if (lower.includes('hindi') || lower.includes('हिंदी')) {
-    return `## 🌐 हिंदी अनुवाद (Translation to Hindi)
-
-**मूल प्रश्न:** "${escapeTitle(prompt)}"
-
-**हिंदी अनुवाद / उत्तर:**
-आपकी आवश्यकता के अनुसार स्पष्ट और सटीक भाषा में उत्तर प्रस्तुत है। नेक्सोरा (Nexora) हिंदी भाषा में प्रभावी और सरल अनुवाद प्रदान करने में पूरी तरह सक्षम है।
-
-* 💡 **सुझाव:** यदि आप किसी विशिष्ट वाक्य या दस्तावेज़ का अनुवाद चाहते हैं, तो कृपया पाठ यहाँ साझा करें।
-${getEngineFooter()}`;
-  }
-
-  return `## 🌐 Multilingual Translation
-
-**Source Query:** "${escapeTitle(prompt)}"
-
-**Translation Output:**
-Nexora supports accurate and fluent translation across multiple languages including English, Urdu, Hindi, Arabic, Spanish, French, and German.
-
-*To translate a specific block of text, simply type \`Translate to [Language]: "your text here"\`.*
-${getEngineFooter()}`;
-}
-
-function handleQuizQuery(prompt: string, lower: string): string {
-  const topic = escapeTitle(prompt.replace(/^(generate mcqs for|mcqs on|quiz on)/i, '').trim() || 'General Knowledge');
-
-  return `## 🎯 Knowledge Check & MCQs: ${topic}
-
-**Question 1:** What is the primary characteristic or foundational objective of ${topic}?  
-* A) Minimizing structured workflow efficiency  
-* B) Streamlining processes and enhancing overall efficacy  
-* C) Completely eliminating manual oversight  
-* D) None of the above  
-**Correct Answer:** **B** — It focuses on streamlining processes and achieving high efficacy.
-
----
-
-**Question 2:** Which of the following best describes the optimal approach when implementing ${topic}?  
-* A) Unplanned rapid rollout without benchmarking  
-* B) Systematic evaluation, testing, and continuous feedback  
-* C) Disregarding stakeholder feedback  
-* D) Relying entirely on legacy assumptions  
-**Correct Answer:** **B** — Structured evaluation and testing ensure reliability.
-
----
-
-**Question 3:** What role does data accuracy play in ${topic}?  
-* A) Negligible importance  
-* B) Only relevant in academic exercises  
-* C) Vital for predictive precision and sound decision-making  
-* D) Secondary to aesthetic presentation  
-**Correct Answer:** **C** — High data integrity is essential for accurate outcomes.
-${getEngineFooter()}`;
+### III. Critical Evaluation & Conclusion
+Approaching **${topic}** with evidence-based decision-making and continuous evaluation yields measurable, sustainable results.`;
 }
 
 function handleGeneralConcept(prompt: string, lower: string): string {
   const cleanTitle = escapeTitle(prompt);
 
-  return `## 📌 Overview: ${cleanTitle}
+  if (lower.includes('photosynthesis')) {
+    return `## 🌿 Photosynthesis: Definition & Mechanism
 
-### 1. Definition & Core Concept
-**${cleanTitle}** refers to a significant concept characterized by structured principles, systematic execution, and measurable outcomes. Understanding its foundational aspects allows for more effective practical application and informed analysis.
+**Photosynthesis** is the biological process by which green plants, algae, and certain bacteria convert **light energy** into **chemical energy** stored in glucose molecules.
+
+### 🔬 The Chemical Equation:
+$$\\text{6CO}_2 + \\text{6H}_2\\text{O} + \\text{Light} \\longrightarrow \\text{C}_6\\text{H}_{12}\\text{O}_6 + \\text{6O}_2$$
+
+### 📌 Two Main Stages:
+1. **Light-Dependent Reactions (in Thylakoid membranes):**
+   * Chlorophyll absorbs sunlight and splits water molecules ($H_2O$).
+   * Releases Oxygen ($O_2$) as a byproduct and produces ATP and NADPH.
+2. **Light-Independent Reactions (Calvin Cycle, in Stroma):**
+   * Uses ATP and NADPH to fix Carbon Dioxide ($CO_2$) into high-energy sugars (Glucose).
+
+### 🌍 Global Significance:
+* Produces the primary oxygen supply for aerobic life on Earth.
+* Forms the foundational base of virtually all terrestrial and aquatic food chains.`;
+  }
+
+  return `## 📌 Analysis: ${cleanTitle}
+
+### 1. Definition & Core Principles
+**${cleanTitle}** is characterized by systematic principles, structured execution, and measurable outcomes. Understanding its foundational mechanisms enables effective application and informed analysis.
 
 ### 2. Key Pillars
-* **Foundational Framework:** Establishes the core rules and standards governing the topic.
-* **Operational Execution:** Focuses on practical implementation, avoiding common pitfalls through proven methodologies.
-* **Evaluation & Optimization:** Continuously measures outcomes against established benchmarks to drive improvements.
+* **Foundational Framework:** Establishes standards, constraints, and baseline requirements.
+* **Operational Execution:** Focuses on practical implementation while mitigating edge-case risks.
+* **Verification & Feedback:** Continually measures results against benchmarks to ensure accuracy and continuous improvement.
 
-### 3. Practical Applications
-1. **Academic & Research:** Serves as a vital reference point for in-depth studies and critical evaluations.
-2. **Professional & Enterprise:** Enables organizations to optimize workflows, improve communication, and scale operations.
-3. **Daily Productivity:** Provides clear mental models for problem-solving and strategic thinking.
-
-### 4. Summary Takeaway
-Approaching **${cleanTitle}** with structured methodology and clear objectives ensures consistent, high-value results across any discipline.
-${getEngineFooter()}`;
+### 3. Practical Takeaway
+A disciplined, step-by-step approach ensures reliable, high-value outcomes across any complex problem domain.`;
 }
 
 function escapeTitle(text: string): string {

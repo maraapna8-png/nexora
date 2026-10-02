@@ -13,8 +13,8 @@ const DEFAULT_SETTINGS: UserSettings = {
   theme: 'dark',
   defaultLanguage: 'English',
   writingStyle: 'Professional',
-  responseLength: 'Short',
-  preferredModel: 'gemini-3.1-flash-lite'
+  responseLength: 'Balanced',
+  preferredModel: 'gemini-3.8-flash'
 };
 
 const SETTINGS_STORAGE_KEY = 'writemind_user_settings';

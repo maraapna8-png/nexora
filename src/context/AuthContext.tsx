@@ -197,6 +197,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       localStorage.removeItem(GUEST_STORAGE_KEY);
+      localStorage.removeItem('nexora_asked_user_name');
+      localStorage.removeItem('nexora_user_preferred_name');
       setIsGuest(false);
       setUser(null);
       await authService.logout();

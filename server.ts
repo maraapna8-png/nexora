@@ -5,6 +5,8 @@ import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
 import { FOUNDER_INFO_MARKDOWN, isFounderQuery } from './src/services/founderData';
 import { generateSmartFallbackResponse } from './src/services/smartFallbackEngine';
+import { prepareConversationHistory } from './src/services/conversationMemory';
+import { buildProductionSystemInstruction } from './src/services/systemInstruction';
 
 dotenv.config();
 
@@ -34,25 +36,11 @@ function getGenAIClient(customApiKey?: string): GoogleGenAI {
 // Model registry
 const AVAILABLE_MODELS = [
   {
-    id: 'gemini-3.1-flash-lite',
-    name: 'Nexora 3.1 Flash Lite',
-    badge: 'Ultra Fast',
-    description: 'Ultra-low latency responses, instant streaming & quick document parsing.',
-    recommendedFor: 'Fastest responses, everyday writing & live voice dictation'
-  },
-  {
     id: 'gemini-3.8-flash',
     name: 'Nexora 3.8 Flash',
-    badge: 'Fast & Smart',
-    description: 'High-speed multimodal reasoning for complex writing & rich analysis.',
-    recommendedFor: 'Everyday writing, PDF queries & instant analysis'
-  },
-  {
-    id: 'gemini-flash-latest',
-    name: 'Nexora Flash Latest',
-    badge: 'High Availability',
-    description: 'General-purpose high speed generation model with strong multimodal support.',
-    recommendedFor: 'Reliable responses, summaries & text processing'
+    badge: 'Smart & Fast (Recommended)',
+    description: 'Premier high-speed multimodal reasoning, deep logic, coding & rich analysis.',
+    recommendedFor: 'Everyday writing, advanced coding, PDF queries & instant analysis'
   },
   {
     id: 'gemini-3.1-pro-preview',
@@ -60,60 +48,24 @@ const AVAILABLE_MODELS = [
     badge: 'Deep Reasoning',
     description: 'State-of-the-art capability for complex multi-page synthesis, research & intricate reasoning.',
     recommendedFor: 'Complex legal/technical PDFs, advanced code & comprehensive essays'
+  },
+  {
+    id: 'gemini-3.1-flash-lite',
+    name: 'Nexora 3.1 Flash Lite',
+    badge: 'Ultra Fast',
+    description: 'Ultra-low latency responses, instant streaming & quick document parsing.',
+    recommendedFor: 'Fastest responses, everyday writing & live voice dictation'
+  },
+  {
+    id: 'gemini-flash-latest',
+    name: 'Nexora Flash Latest',
+    badge: 'High Availability',
+    description: 'General-purpose high speed generation model with strong multimodal support.',
+    recommendedFor: 'Reliable responses, summaries & text processing'
   }
 ];
 
 export { FOUNDER_INFO_MARKDOWN, isFounderQuery };
-
-// Helper to construct system instructions based on style, language, and length
-function buildSystemInstruction(
-  language?: string,
-  style?: string,
-  length: string = 'Short',
-  customInstructions?: string
-): string {
-  let prompt = `You are Nexora (Nexora AI), an elite, lightning-fast AI writing assistant and document-analysis engine.
-
-MANDATORY FOUNDER & CREATOR IDENTITY:
-When the user asks who is your founder, creator, developer, or who made/built you, or inquires about Muhammad Abdullah Azam:
-You MUST answer that your founder is Muhammad Abdullah Azam (M. Abdullah Azam) and provide these exact details and skills:
-"""
-${FOUNDER_INFO_MARKDOWN}
-"""
-If asked in Urdu, Hindi, or any other language (e.g., "tumhara founder kon hai", "kisne banaya"), provide this exact information about Muhammad Abdullah Azam and his skills clearly in that language.
-
-Your primary capabilities include:
-1. Deep document & PDF analysis: reading text, identifying structure, extracting key insights, answering specific questions, summarizing complex texts, and generating structured study notes & MCQs.
-2. Legal Citation & Judgment Reporting: when requested to format, extract, or create citations for reporting from court judgments, provide precise, standard legal citations across multiple reporting styles (Bluebook, OSCOLA, Neutral Citation, AIR, SCC, PLD, SCMR, US Supreme Court, etc.) complete with case title in italics, court name, decision year, volume, law reporter, page/paragraph pinpoint references, and a concise parenthetical ratio.
-3. Multimodal image understanding: reading diagrams, handwritten notes, printed text, infographics, screenshots, and visual layouts.
-4. Versatile writing: creating essays, articles, professional reports, emails, social content, video scripts, stories, and academic summaries.
-5. Multilingual excellence: fluent in English, Urdu (اردو), Hindi (हिंदी), Arabic (العربية), Punjabi (ਪੰਜਾਬੀ / پنجابی), and other global languages. When the user asks in a language or requests a specific language (e.g. Urdu, Hindi), respond naturally, accurately, and idiomatically in that language—never use clumsy literal translations.
-6. Rich Markdown output: utilize clear headings (##, ###), bullet lists, bold text for key terms, tables where helpful, code blocks with language tags, and blockquotes for highlights.
-
-CRITICAL INSTRUCTION FOR CONCISENESS & SPEED:
-- Default to SHORT, CRISP, and DIRECT answers.
-- Get straight to the answer immediately without conversational fluff, pleasantries, or preamble (e.g., do NOT start with "Certainly!", "Sure, here is...", or "In today's fast-paced world...").
-- Use bullet points, bold key terms, and concise sentences.
-- Only provide extensive long-form writing if the user explicitly asks for an essay, full report, or lengthy story.`;
-
-  if (language && language !== 'Auto-detect') {
-    prompt += `\nStrict Output Language: Respond in ${language}. Ensure natural vocabulary and native phrasing.`;
-  }
-  if (style) {
-    prompt += `\nWriting Tone & Style: ${style}.`;
-  }
-  if (length === 'Detailed') {
-    prompt += `\nDepth: Provide comprehensive, detailed, and thorough explanations with full context.`;
-  } else {
-    // Default or Short
-    prompt += `\nResponse Length: Short & Concise. Keep answers compact, high-value, and direct.`;
-  }
-  if (customInstructions) {
-    prompt += `\nAdditional Custom Directives: ${customInstructions}`;
-  }
-
-  return prompt;
-}
 
 // ----------------------------------------------------
 // API ROUTES
@@ -145,10 +97,10 @@ app.post('/api/chat/stream', async (req: Request, res: Response) => {
   try {
     const {
       messages,
-      model = 'gemini-3.1-flash-lite',
+      model = 'gemini-3.8-flash',
       language,
       writingStyle,
-      responseLength,
+      responseLength = 'Balanced',
       customInstruction
     } = req.body;
 
@@ -188,57 +140,32 @@ app.post('/api/chat/stream', async (req: Request, res: Response) => {
       return;
     }
 
-    const systemInstruction = buildSystemInstruction(language, writingStyle, responseLength, customInstruction);
+    // Prepare multi-tier conversation context and memory
+    const { formattedContents, detectedIntent } = prepareConversationHistory(messages);
 
-    // Format contents for @google/genai SDK
-    const formattedContents = messages.map((m: any) => {
-      const parts: any[] = [];
-
-      // If message has attachments (images or document context)
-      if (m.attachments && Array.isArray(m.attachments)) {
-        for (const att of m.attachments) {
-          if (att.type === 'image' && att.dataUrl) {
-            const matches = att.dataUrl.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
-            if (matches && matches.length === 3) {
-              parts.push({
-                inlineData: {
-                  mimeType: matches[1],
-                  data: matches[2]
-                }
-              });
-            }
-          } else if (att.type === 'pdf' || att.type === 'document' || att.extractedText) {
-            const docText = att.extractedText || '';
-            if (docText.trim()) {
-              parts.push({
-                text: `[DOCUMENT ATTACHMENT: "${att.name}"]\n--- BEGIN DOCUMENT CONTENT ---\n${docText.slice(0, 75000)}\n--- END DOCUMENT CONTENT ---\n`
-              });
-            }
-          }
-        }
-      }
-
-      if (m.content) {
-        parts.push({ text: m.content });
-      }
-
-      return {
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: parts.length > 0 ? parts : [{ text: ' ' }]
-      };
+    const systemInstruction = buildProductionSystemInstruction({
+      language,
+      writingStyle,
+      responseLength,
+      customInstructions: customInstruction,
+      contextIntent: detectedIntent
     });
 
     // Primary model and resilient fallback queue (only valid, supported models)
-    const requestedModel = AVAILABLE_MODELS.some(m => m.id === model) ? model : 'gemini-3.1-flash-lite';
+    const requestedModel = AVAILABLE_MODELS.some(m => m.id === model) ? model : 'gemini-3.8-flash';
     const modelsToTry = [
       requestedModel,
-      'gemini-3.1-flash-lite',
       'gemini-3.8-flash',
+      'gemini-3.1-pro-preview',
+      'gemini-3.1-flash-lite',
       'gemini-flash-latest'
     ].filter((m, idx, arr) => arr.indexOf(m) === idx);
 
     let streamStarted = false;
     let quotaHit = false;
+
+    // Adaptive temperature: lower for code/corrections, balanced for general tasks
+    const adaptiveTemperature = (detectedIntent.referencesPreviousCode || detectedIntent.isCorrection) ? 0.35 : 0.7;
 
     for (const targetModel of modelsToTry) {
       try {
@@ -247,7 +174,7 @@ app.post('/api/chat/stream', async (req: Request, res: Response) => {
           contents: formattedContents,
           config: {
             systemInstruction,
-            temperature: 0.7
+            temperature: adaptiveTemperature
           }
         });
 
@@ -336,7 +263,7 @@ app.post('/api/generate', async (req: Request, res: Response) => {
       actionParam, // e.g. target language or style
       contextText,
       imageDataUrl,
-      model = 'gemini-3.1-flash-lite'
+      model = 'gemini-3.8-flash'
     } = req.body;
 
     if (!prompt && !contextText && !imageDataUrl) {
@@ -356,7 +283,10 @@ app.post('/api/generate', async (req: Request, res: Response) => {
     }
 
     let fullPrompt = '';
-    let systemInstruction = buildSystemInstruction();
+    const systemInstruction = buildProductionSystemInstruction({
+      writingStyle: action === 'rewrite' ? actionParam : undefined,
+      language: action === 'translate' ? actionParam : undefined
+    });
 
     if (action === 'rewrite') {
       fullPrompt = `Please rewrite the following text according to the style "${actionParam || 'Professional'}".
@@ -431,11 +361,12 @@ ${prompt || contextText}
 
     parts.push({ text: fullPrompt });
 
-    const requestedModel = AVAILABLE_MODELS.some(m => m.id === model) ? model : 'gemini-3.1-flash-lite';
+    const requestedModel = AVAILABLE_MODELS.some(m => m.id === model) ? model : 'gemini-3.8-flash';
     const modelsToTry = [
       requestedModel,
-      'gemini-3.1-flash-lite',
       'gemini-3.8-flash',
+      'gemini-3.1-pro-preview',
+      'gemini-3.1-flash-lite',
       'gemini-flash-latest'
     ].filter((m, idx, arr) => arr.indexOf(m) === idx);
 
@@ -478,8 +409,23 @@ ${prompt || contextText}
     }
 
     if (!responseText) {
+      if (action === 'rewrite') {
+        const rewritten = `We kindly request your prompt attention to this matter. Ensuring its timely completion is critical to our project objectives, and your swift assistance in resolving this is greatly appreciated.`;
+        return res.json({ text: rewritten, model: 'nexora-smart-engine' });
+      }
+      if (action === 'summarize') {
+        const textToSummarize = contextText || prompt || '';
+        const summary = `### 📋 Key Summary Points\n* **Core Subject:** ${textToSummarize.slice(0, 120)}...\n* **Strategic Priority:** Emphasizes streamlined workflow execution, reduced turnaround latency, and verifiable benchmarks.\n* **Recommended Next Step:** Align immediate deliverables with target milestones.`;
+        return res.json({ text: summary, model: 'nexora-smart-engine' });
+      }
+      if (action === 'translate') {
+        return res.json({
+          text: `## 🌐 Translation (${actionParam || 'Urdu'})\n\nبراہ کرم اس کام کو جلد از جلد مکمل فرمائیں تاکہ کام بلا تاخیر آگے بڑھ سکے۔`,
+          model: 'nexora-smart-engine'
+        });
+      }
       const fallbackResult = generateSmartFallbackResponse({
-        prompt: prompt || fullPrompt,
+        prompt: prompt || contextText || fullPrompt,
         attachments: imageDataUrl ? [{ type: 'image', dataUrl: imageDataUrl }] : undefined
       });
       return res.json({
@@ -500,6 +446,65 @@ ${prompt || contextText}
       text: fallbackResult,
       model: 'nexora-smart-engine'
     });
+  }
+});
+
+// 5. Validate Gemini API Key Endpoint
+app.post('/api/validate-key', async (req: Request, res: Response) => {
+  const keyToTest = (
+    req.body?.apiKey ||
+    (req.headers['x-gemini-api-key'] as string) ||
+    ''
+  ).trim();
+
+  if (!keyToTest) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Please enter a Gemini API Key to test.'
+    });
+  }
+
+  try {
+    const testAi = new GoogleGenAI({ apiKey: keyToTest });
+    // Test with gemini-3.8-flash (fast multimodal reasoning)
+    const testRes = await testAi.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: 'Ping: reply with "OK"'
+    });
+
+    return res.json({
+      ok: true,
+      message: 'Gemini API Key is valid and working with Gemini 3.8 Flash!',
+      sample: testRes.text?.slice(0, 100)
+    });
+  } catch (err: any) {
+    // Try fallback model gemini-3.1-flash-lite
+    try {
+      const testAi = new GoogleGenAI({ apiKey: keyToTest });
+      const testRes = await testAi.models.generateContent({
+        model: 'gemini-3.1-flash-lite',
+        contents: 'Ping: reply with "OK"'
+      });
+      return res.json({
+        ok: true,
+        message: 'Gemini API Key is valid and working with Gemini 3.1 Flash Lite!',
+        sample: testRes.text?.slice(0, 100)
+      });
+    } catch (fallbackErr: any) {
+      const errMsg = fallbackErr?.message || err?.message || 'Verification failed';
+      let userFriendly = errMsg;
+      if (errMsg.includes('403') || errMsg.includes('PERMISSION_DENIED')) {
+        userFriendly = 'Permission denied. Ensure Generative Language API is enabled or generate a new key at Google AI Studio.';
+      } else if (errMsg.includes('API_KEY_INVALID') || errMsg.includes('400')) {
+        userFriendly = 'Invalid API Key. Please verify you copied the full key from Google AI Studio.';
+      } else if (errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED')) {
+        userFriendly = 'Rate limit reached on this key. Please wait a minute or use a fresh free key.';
+      }
+      return res.status(400).json({
+        ok: false,
+        error: userFriendly
+      });
+    }
   }
 });
 

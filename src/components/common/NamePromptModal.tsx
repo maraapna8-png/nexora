@@ -97,9 +97,19 @@ export const NamePromptModal: React.FC<NamePromptModalProps> = ({ isOpen, onClos
           </button>
         </form>
 
-        <p className="mt-4 text-center text-[11px] text-slate-400">
-          You can change this anytime in your Account Settings.
-        </p>
+        <div className="mt-4 flex items-center justify-between text-[11px] text-slate-400">
+          <span>You can change this anytime.</span>
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.setItem('nexora_asked_user_name', 'true');
+              onClose();
+            }}
+            className="text-slate-400 hover:text-slate-200 hover:underline transition-colors"
+          >
+            Skip for now
+          </button>
+        </div>
       </div>
     </div>
   );

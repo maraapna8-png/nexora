@@ -2,6 +2,8 @@ import { Message, AIModelType, ModelOption, LanguageOption, WritingStyleOption, 
 import { GoogleGenAI } from '@google/genai';
 import { FOUNDER_INFO_MARKDOWN, isFounderQuery } from './founderData';
 import { generateSmartFallbackResponse } from './smartFallbackEngine';
+import { prepareConversationHistory } from './conversationMemory';
+import { buildProductionSystemInstruction } from './systemInstruction';
 
 export { FOUNDER_INFO_MARKDOWN, isFounderQuery };
 
@@ -57,25 +59,11 @@ export const geminiClient = {
     
     return [
       {
-        id: 'gemini-3.1-flash-lite',
-        name: 'Nexora 3.1 Flash Lite',
-        badge: 'Ultra Fast',
-        description: 'Ultra-low latency responses, instant streaming & quick document parsing.',
-        recommendedFor: 'Fastest responses, everyday writing & live voice dictation'
-      },
-      {
         id: 'gemini-3.8-flash',
         name: 'Nexora 3.8 Flash',
-        badge: 'Fast & Smart',
-        description: 'High-speed multimodal reasoning for complex writing & rich analysis.',
-        recommendedFor: 'Everyday writing, PDF queries & instant analysis'
-      },
-      {
-        id: 'gemini-flash-latest',
-        name: 'Nexora Flash Latest',
-        badge: 'High Availability',
-        description: 'General-purpose high speed generation model with strong multimodal support.',
-        recommendedFor: 'Reliable responses, summaries & text processing'
+        badge: 'Smart & Fast (Recommended)',
+        description: 'Premier high-speed multimodal reasoning, deep logic, coding & rich analysis.',
+        recommendedFor: 'Everyday writing, advanced coding, PDF queries & instant analysis'
       },
       {
         id: 'gemini-3.1-pro-preview',
@@ -83,6 +71,20 @@ export const geminiClient = {
         badge: 'Deep Reasoning',
         description: 'State-of-the-art capability for complex multi-page synthesis, research & intricate reasoning.',
         recommendedFor: 'Complex legal/technical PDFs, advanced code & comprehensive essays'
+      },
+      {
+        id: 'gemini-3.1-flash-lite',
+        name: 'Nexora 3.1 Flash Lite',
+        badge: 'Ultra Fast',
+        description: 'Ultra-low latency responses, instant streaming & quick document parsing.',
+        recommendedFor: 'Fastest responses, everyday writing & live voice dictation'
+      },
+      {
+        id: 'gemini-flash-latest',
+        name: 'Nexora Flash Latest',
+        badge: 'High Availability',
+        description: 'General-purpose high speed generation model with strong multimodal support.',
+        recommendedFor: 'Reliable responses, summaries & text processing'
       }
     ];
   },
@@ -93,48 +95,17 @@ export const geminiClient = {
   buildSystemInstruction(
     language?: LanguageOption,
     style?: WritingStyleOption,
-    length: ResponseLengthOption = 'Short',
-    customInstructions?: string
+    length: ResponseLengthOption = 'Balanced',
+    customInstructions?: string,
+    contextIntent?: any
   ): string {
-    let prompt = `You are Nexora (Nexora AI), an elite, lightning-fast AI writing assistant and document-analysis engine.
-
-MANDATORY FOUNDER & CREATOR IDENTITY:
-When the user asks who is your founder, creator, developer, or who made/built you, or inquires about Muhammad Abdullah Azam:
-You MUST answer that your founder is Muhammad Abdullah Azam (M. Abdullah Azam) and provide these exact details and skills:
-"""
-${FOUNDER_INFO_MARKDOWN}
-"""
-If asked in Urdu, Hindi, or any other language (e.g., "tumhara founder kon hai", "kisne banaya"), provide this exact information about Muhammad Abdullah Azam and his skills clearly in that language.
-
-Your primary capabilities include:
-1. Deep document & PDF analysis: extracting key insights, answering questions, summarizing texts, generating study notes & MCQs.
-2. Legal Citation & Judgment Reporting: providing precise citations across standard reporting formats (Bluebook, OSCOLA, Neutral Citation, AIR, SCC, PLD, SCMR, US Supreme Court) with italicized titles, courts, years, reporters, and pinpoint refs.
-3. Multimodal image understanding: reading diagrams, handwritten notes, infographics, and screenshots.
-4. Versatile writing: essays, reports, proposals, emails, video scripts, and academic summaries.
-5. Multilingual excellence: fluent in English, Urdu (اردو), Hindi (हिंदी), Arabic (العربية), Punjabi (ਪੰਜਾਬੀ / پنجابی), and other languages.
-6. Rich Markdown output: clear headings (##, ###), bullet points, bold key terms, tables, and code blocks.
-
-CRITICAL INSTRUCTION FOR CONCISENESS & SPEED:
-- Default to SHORT, CRISP, and DIRECT answers.
-- Get straight to the answer immediately without conversational fluff or pleasantries.
-- Use bullet points, bold key terms, and concise sentences.`;
-
-    if (language && language !== 'Auto-detect') {
-      prompt += `\nStrict Output Language: Respond in ${language}. Ensure natural vocabulary and native phrasing.`;
-    }
-    if (style) {
-      prompt += `\nWriting Tone & Style: ${style}.`;
-    }
-    if (length === 'Detailed') {
-      prompt += `\nDepth: Provide comprehensive, detailed, and thorough explanations with full context.`;
-    } else {
-      prompt += `\nResponse Length: Short & Concise. Keep answers compact, high-value, and direct.`;
-    }
-    if (customInstructions) {
-      prompt += `\nAdditional Custom Directives: ${customInstructions}`;
-    }
-
-    return prompt;
+    return buildProductionSystemInstruction({
+      language,
+      writingStyle: style,
+      responseLength: length,
+      customInstructions,
+      contextIntent
+    });
   },
 
   /**
@@ -173,59 +144,34 @@ CRITICAL INSTRUCTION FOR CONCISENESS & SPEED:
 
     try {
       const ai = new GoogleGenAI({ apiKey });
+      const { formattedContents, detectedIntent } = prepareConversationHistory(messages);
+
       const systemInstruction = this.buildSystemInstruction(
         options.language,
         options.writingStyle,
-        options.responseLength,
-        options.customInstruction
+        options.responseLength || 'Balanced',
+        options.customInstruction,
+        detectedIntent
       );
 
-      const formattedContents = messages.map((m: Message) => {
-        const parts: any[] = [];
-        if (m.attachments && Array.isArray(m.attachments)) {
-          for (const att of m.attachments) {
-            if (att.type === 'image' && att.dataUrl) {
-              const matches = att.dataUrl.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
-              if (matches && matches.length === 3) {
-                parts.push({
-                  inlineData: {
-                    mimeType: matches[1],
-                    data: matches[2]
-                  }
-                });
-              }
-            } else if (att.extractedText) {
-              parts.push({
-                text: `[DOCUMENT ATTACHMENT: "${att.name}"]\n--- BEGIN DOCUMENT CONTENT ---\n${att.extractedText.slice(0, 50000)}\n--- END DOCUMENT CONTENT ---\n`
-              });
-            }
-          }
-        }
-        if (m.content) {
-          parts.push({ text: m.content });
-        }
-        return {
-          role: m.role === 'assistant' ? 'model' : 'user',
-          parts: parts.length > 0 ? parts : [{ text: ' ' }]
-        };
-      });
-
       const targetModels = [
-        options.model || 'gemini-3.1-flash-lite',
-        'gemini-3.1-flash-lite',
+        options.model || 'gemini-3.8-flash',
         'gemini-3.8-flash',
+        'gemini-3.1-pro-preview',
+        'gemini-3.1-flash-lite',
         'gemini-flash-latest'
       ].filter((m, idx, arr) => arr.indexOf(m) === idx);
 
       let stream: any = null;
-      let usedModel = options.model || 'gemini-3.1-flash-lite';
+      let usedModel = options.model || 'gemini-3.8-flash';
+      const adaptiveTemperature = (detectedIntent.referencesPreviousCode || detectedIntent.isCorrection) ? 0.35 : 0.7;
 
       for (const mod of targetModels) {
         try {
           stream = await ai.models.generateContentStream({
             model: mod,
             contents: formattedContents,
-            config: { systemInstruction, temperature: 0.7 }
+            config: { systemInstruction, temperature: adaptiveTemperature }
           });
           usedModel = mod as AIModelType;
           if (stream) break;
@@ -326,11 +272,11 @@ CRITICAL INSTRUCTION FOR CONCISENESS & SPEED:
         headers,
         body: JSON.stringify({
           messages,
-          model: options.model || 'gemini-3.1-flash-lite',
+          model: options.model || 'gemini-3.8-flash',
           customApiKey: clientApiKey || undefined,
           language: options.language,
           writingStyle: options.writingStyle,
-          responseLength: options.responseLength,
+          responseLength: options.responseLength || 'Balanced',
           customInstruction: options.customInstruction
         }),
         signal: options.signal
@@ -429,7 +375,7 @@ CRITICAL INSTRUCTION FOR CONCISENESS & SPEED:
         headers,
         body: JSON.stringify({
           ...params,
-          model: params.model || 'gemini-3.1-flash-lite',
+          model: params.model || 'gemini-3.8-flash',
           customApiKey: clientApiKey || undefined
         })
       });
@@ -465,9 +411,15 @@ CRITICAL INSTRUCTION FOR CONCISENESS & SPEED:
         prompt = `Fix all grammatical mistakes and improve readability:\n\n${params.contextText}`;
       }
 
+      const systemInstruction = buildProductionSystemInstruction({
+        writingStyle: params.action === 'rewrite' ? params.actionParam : undefined,
+        language: params.action === 'translate' ? params.actionParam : undefined
+      });
+
       const result = await ai.models.generateContent({
-        model: params.model || 'gemini-3.1-flash-lite',
-        contents: prompt
+        model: params.model || 'gemini-3.8-flash',
+        contents: prompt,
+        config: { systemInstruction }
       });
 
       return result.text || generateSmartFallbackResponse({ prompt: params.prompt || params.contextText || 'Action' });

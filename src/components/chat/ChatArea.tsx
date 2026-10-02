@@ -11,7 +11,8 @@ import {
   Languages,
   ChevronDown,
   Scale,
-  Edit2
+  Edit2,
+  Key
 } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
@@ -154,6 +155,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ onOpenLegalCitation }) => {
                 <p className="font-semibold text-white">
                   Where do you want to start?
                 </p>
+              </div>
+
+              {/* Free API Key Link */}
+              <div className="mt-5 pt-3.5 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-api-key-modal'))}
+                  className="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 font-sans font-medium transition-colors group/key"
+                >
+                  <Key className="w-3.5 h-3.5 text-indigo-400 group-hover/key:text-indigo-300" />
+                  <span>Configure Free Gemini API Key (100% Free at Google AI Studio)</span>
+                  <span className="text-slate-500 group-hover/key:translate-x-0.5 transition-transform">→</span>
+                </button>
               </div>
             </div>
 

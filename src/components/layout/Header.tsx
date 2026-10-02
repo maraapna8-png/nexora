@@ -9,7 +9,8 @@ import {
   Zap,
   Cpu,
   Feather,
-  Scale
+  Scale,
+  Key
 } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
@@ -20,6 +21,7 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onOpenSearch: () => void;
   onOpenLegalCitation?: () => void;
+  onOpenApiKey?: () => void;
   activeView: 'chat' | 'documents' | 'history';
   setActiveView: (view: 'chat' | 'documents' | 'history') => void;
 }
@@ -39,12 +41,26 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onOpenSearch,
   onOpenLegalCitation,
+  onOpenApiKey,
   activeView,
   setActiveView
 }) => {
   const { activeConversation, activeModel, setActiveModel, createNewConversation } = useChat();
   const { user, isGuest } = useAuth();
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(() => Boolean(localStorage.getItem('nexora_gemini_api_key')?.trim()));
+
+  React.useEffect(() => {
+    const checkKey = () => {
+      setHasApiKey(Boolean(localStorage.getItem('nexora_gemini_api_key')?.trim()));
+    };
+    window.addEventListener('focus', checkKey);
+    window.addEventListener('storage', checkKey);
+    return () => {
+      window.removeEventListener('focus', checkKey);
+      window.removeEventListener('storage', checkKey);
+    };
+  }, []);
 
   const currentModelMeta = MODEL_LABELS[activeModel] || MODEL_LABELS['gemini-3.8-flash'];
   const CurrentModelIcon = currentModelMeta.icon;
@@ -141,6 +157,35 @@ export const Header: React.FC<HeaderProps> = ({
             </>
           )}
         </div>
+
+        {/* Free API Key Trigger Button */}
+        <button
+          onClick={() => {
+            if (onOpenApiKey) onOpenApiKey();
+            else window.dispatchEvent(new CustomEvent('open-api-key-modal'));
+          }}
+          className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium transition-all shadow-xs shrink-0 ${
+            hasApiKey
+              ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+              : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40'
+          }`}
+          title={hasApiKey ? 'Gemini API Key Active (Click to manage)' : 'Add Free Gemini API Key from Google AI Studio'}
+        >
+          <Key className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline font-semibold">
+            {hasApiKey ? 'API Key Active' : 'Free API Key'}
+          </span>
+          <span className="sm:hidden font-semibold">
+            {hasApiKey ? 'Key' : 'Free Key'}
+          </span>
+          {hasApiKey ? (
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+          ) : (
+            <span className="text-[10px] px-1 rounded-sm bg-amber-400/20 text-amber-300 font-bold shrink-0">
+              FREE
+            </span>
+          )}
+        </button>
 
         {/* Quick New Chat Button (Mobile Icon / Desktop Pill) */}
         <button

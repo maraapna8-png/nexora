@@ -357,17 +357,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
                     <Key className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Gemini API Key (For Live Site / Static Hosting)</span>
+                    <span>Gemini API Key (For Live Site & Direct AI Execution)</span>
                   </label>
-                  <a
-                    href="https://aistudio.google.com/app/apikey"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 underline underline-offset-2"
-                  >
-                    <span>Get Free Gemini Key</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        window.dispatchEvent(new CustomEvent('open-api-key-modal'));
+                      }}
+                      className="text-[11px] text-amber-400 hover:text-amber-300 flex items-center gap-1 font-medium"
+                    >
+                      <span>🔑 Free Key Setup</span>
+                    </button>
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 underline underline-offset-2"
+                    >
+                      <span>Get Free Key</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
                 </div>
 
                 <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">
