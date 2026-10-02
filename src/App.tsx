@@ -14,7 +14,6 @@ import { AuthModal } from './components/auth/AuthModal';
 import { LandingPage } from './components/landing/LandingPage';
 import { SplashScreen } from './components/common/SplashScreen';
 import { NamePromptModal } from './components/common/NamePromptModal';
-import { ApiKeyModal } from './components/modals/ApiKeyModal';
 
 const MainWorkspace: React.FC = () => {
   const { user, loading, loginAsGuest } = useAuth();
@@ -27,7 +26,6 @@ const MainWorkspace: React.FC = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
   const [namePromptOpen, setNamePromptOpen] = useState(false);
-  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
 
   // When user enters workspace / logs in, ask what their name is
   useEffect(() => {
@@ -49,14 +47,6 @@ const MainWorkspace: React.FC = () => {
     };
     window.addEventListener('open-name-prompt-modal', handleOpenNamePrompt);
     return () => window.removeEventListener('open-name-prompt-modal', handleOpenNamePrompt);
-  }, []);
-
-  useEffect(() => {
-    const handleOpenApiKey = () => {
-      setApiKeyModalOpen(true);
-    };
-    window.addEventListener('open-api-key-modal', handleOpenApiKey);
-    return () => window.removeEventListener('open-api-key-modal', handleOpenApiKey);
   }, []);
 
   useEffect(() => {
@@ -114,7 +104,6 @@ const MainWorkspace: React.FC = () => {
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenSearch={() => setSearchOpen(true)}
         onOpenLegalCitation={() => setLegalCitationOpen(true)}
-        onOpenApiKey={() => setApiKeyModalOpen(true)}
       />
 
       {/* Main Content Workspace */}
@@ -125,7 +114,6 @@ const MainWorkspace: React.FC = () => {
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenSearch={() => setSearchOpen(true)}
           onOpenLegalCitation={() => setLegalCitationOpen(true)}
-          onOpenApiKey={() => setApiKeyModalOpen(true)}
           activeView={activeView}
           setActiveView={setActiveView}
         />
@@ -162,10 +150,6 @@ const MainWorkspace: React.FC = () => {
       <NamePromptModal
         isOpen={namePromptOpen}
         onClose={() => setNamePromptOpen(false)}
-      />
-      <ApiKeyModal
-        isOpen={apiKeyModalOpen}
-        onClose={() => setApiKeyModalOpen(false)}
       />
     </div>
   );

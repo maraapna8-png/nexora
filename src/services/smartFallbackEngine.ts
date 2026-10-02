@@ -68,8 +68,8 @@ export function generateSmartFallbackResponse(ctx: SmartFallbackContext): string
   }
 
   // 5. FOLLOW-UP UNDERSTANDING (e.g. "Give me an example", "Give an example", "Show an example", "Why?", "How?")
-  if (/^(give (me )?(an )?example|show (me )?(an )?example|example please|aur example do)\b/i.test(lowerPrompt)) {
-    return handleFollowUpExample(priorAssistantContent, priorUserContent);
+  if (/(give (me )?(an )?example|show (me )?(an )?example|example please|aur example do)\b/i.test(lowerPrompt)) {
+    return handleFollowUpExample(prompt, lowerPrompt, priorAssistantContent, priorUserContent);
   }
 
   if (/^(why\??|how\??|how does it work\??|explain why)\b/i.test(lowerPrompt)) {
@@ -271,8 +271,61 @@ The proposed initiative focuses on streamlining core operational objectives thro
 We recommend formalizing these baseline parameters and conducting stakeholder reviews to align implementation schedules with organizational priorities.`;
 }
 
-function handleFollowUpExample(priorAssistant: string, priorUser: string): string {
+function handleFollowUpExample(prompt: string, lower: string, priorAssistant: string, priorUser: string): string {
+  const isJs = /\b(javascript|js|node|react)\b/i.test(lower) || /\b(javascript|js)\b/i.test(prompt);
+  const isTs = /\b(typescript|ts)\b/i.test(lower);
+  const isCpp = /\b(c\+\+|cpp|c)\b/i.test(lower);
+  const isJava = /\b(java)\b/i.test(lower);
+
   if (/recursion/i.test(priorAssistant) || /recursion/i.test(priorUser)) {
+    if (isJs || isTs) {
+      return `## 💡 Concrete Example: Recursion in ${isTs ? 'TypeScript' : 'JavaScript'}
+
+Here is a practical, step-by-step example demonstrating **Recursion** in JavaScript / TypeScript using a countdown and nested object flattener:
+
+\`\`\`javascript
+// Example 1: Countdown using recursion
+function countdown(n) {
+  // 1. Base Case: stops recursion when n reaches 0
+  if (n <= 0) {
+    console.log("Blast off! 🚀");
+    return;
+  }
+
+  // 2. Work in the current step
+  console.log(n);
+
+  // 3. Recursive Call: calls itself with a smaller input
+  countdown(n - 1);
+}
+
+countdown(3);
+// Logs: 3 -> 2 -> 1 -> "Blast off! 🚀"
+
+// Example 2: Calculating Factorial with base case
+function factorial(n) {
+  if (n <= 1) return 1; // Base case
+  return n * factorial(n - 1); // Recursive step
+}
+
+console.log(factorial(5)); // Output: 120
+\`\`\`
+
+### 📊 Visualizing the Call Stack:
+\`\`\`text
+| factorial(1) | -> returns 1 (Base Case reached)
+| factorial(2) | -> 2 * 1 = 2
+| factorial(3) | -> 3 * 2 = 6
+| factorial(4) | -> 4 * 6 = 24
+| factorial(5) | -> 5 * 24 = 120
++--------------+
+\`\`\`
+
+### 🎯 Key Takeaways:
+1. **Base Case:** Always define a terminating condition to avoid an infinite loop (\`RangeError: Maximum call stack size exceeded\`).
+2. **State Transition:** Every recursive invocation must decrement or progress towards the terminating base condition.`;
+    }
+
     return `## 💡 Concrete Example: Recursion in Action
 
 Here is a practical, step-by-step example demonstrating **Recursion** using a countdown and factorial function in Python:

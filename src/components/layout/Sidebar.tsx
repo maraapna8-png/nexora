@@ -13,8 +13,7 @@ import {
   BookOpen,
   ChevronRight,
   ShieldCheck,
-  Scale,
-  Key
+  Scale
 } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
@@ -28,7 +27,6 @@ interface SidebarProps {
   onOpenSettings: () => void;
   onOpenSearch: () => void;
   onOpenLegalCitation?: () => void;
-  onOpenApiKey?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -38,8 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setActiveView,
   onOpenSettings,
   onOpenSearch,
-  onOpenLegalCitation,
-  onOpenApiKey
+  onOpenLegalCitation
 }) => {
   const {
     conversations,
@@ -299,23 +296,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Bottom Section: User Profile & Actions */}
         <div className="p-3 border-t border-slate-800/80 bg-[#070a12]/90 space-y-2">
-          {/* Free Gemini API Key Trigger */}
-          <button
-            onClick={() => {
-              if (onOpenApiKey) onOpenApiKey();
-              else window.dispatchEvent(new CustomEvent('open-api-key-modal'));
-            }}
-            className="w-full px-3 py-2 rounded-lg flex items-center justify-between text-xs text-slate-200 bg-indigo-950/40 hover:bg-indigo-900/50 border border-indigo-500/25 transition-colors group"
-          >
-            <div className="flex items-center gap-2.5">
-              <Key className="w-4 h-4 text-indigo-400 group-hover:text-indigo-300" />
-              <span className="font-medium">Free Gemini API Key</span>
-            </div>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">
-              FREE
-            </span>
-          </button>
-
           {/* Settings Trigger */}
           <button
             onClick={onOpenSettings}
